@@ -1,0 +1,83 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* 防止出现滚动条 */
+    background-color: #1a1a1a;
+    font-family: 'Inter', 'Roboto', sans-serif;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* UI 屏幕样式 */
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.screen.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.screen h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+    color: #ff9f43;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.screen p {
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.screen button {
+    margin-top: 30px;
+    padding: 15px 40px;
+    font-size: 24px;
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    transition: transform 0.1s, background 0.2s;
+}
+
+.screen button:hover {
+    background: #ff5252;
+    transform: scale(1.05);
+}
+
+.screen button:active {
+    transform: scale(0.95);
+}

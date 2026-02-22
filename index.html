@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>皮皮狗贪吃蛇</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Canvas 画布 -->
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- UI 蒙层 -->
+        <div id="start-screen" class="screen active">
+            <h1>皮皮狗贪吃蛇</h1>
+            <p>使用鼠标或 WASD 控制方向</p>
+            <p>吃彩色道具变长，避开紫色陷阱！</p>
+            <button id="start-btn">开始游戏</button>
+        </div>
+        
+        <div id="game-over-screen" class="screen">
+            <h1>Game Over</h1>
+            <p id="final-score">得分: 0</p>
+            <p id="final-length">最大长度: 1</p>
+            <button id="restart-btn">重新开始</button>
+        </div>
+    </div>
+
+    <!-- 顺序引入脚本 -->
+    <script src="js/assets.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/props.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
