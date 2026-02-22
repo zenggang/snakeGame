@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { background: #333; color: #fff; }
+        canvas { border: 1px solid #aaa; margin: 10px; }
+        #parts canvas { width: 100px; height: 100px; border: 1px dashed red; }
+    </style>
+</head>
+<body>
+    <h3>Original Image Size: <span id="size"></span></h3>
+    <canvas id="source"></canvas>
+    <div id="parts">
+        <div>Head: <canvas id="head"></canvas></div>
+        <div>Body: <canvas id="body"></canvas></div>
+        <div>Tail: <canvas id="tail"></canvas></div>
+    </div>
+    <script>
+        const img = new Image();
+        img.src = 'assets/character.png';
+        img.onload = () => {
+            document.getElementById('size').innerText = `${img.width}x${img.height}`;
+            const canvas = document.getElementById('source');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            
+            // 2x3 grid
+            const cellW = img.width / 3;
+            const cellH = img.height / 2;
+            
+            // Focus on top-left cell: Draw grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.strokeRect(0, 0, cellW, cellH);
+            
+            // Propose coordinates (relative to cell 0,0)
+            const slices = {
+                // Precise bounding boxes for top-left cell
+                head: {x: 40, y: 70, w: 320, h: 310},
+                body: {x: 420, y: 310, w: 100, h: 140}, // A clean middle arch segment
+                tail: {x: 615, y: 220, w: 140, h: 220}
+            };
+            
+            ctx.strokeStyle = 'red'; ctx.lineWidth = 2;
+            ctx.strokeRect(slices.head.x, slices.head.y, slices.head.w, slices.head.h);
+            ctx.strokeStyle = 'green';
+            ctx.strokeRect(slices.body.x, slices.body.y, slices.body.w, slices.body.h);
+            ctx.strokeStyle = 'blue';
+            ctx.strokeRect(slices.tail.x, slices.tail.y, slices.tail.w, slices.tail.h);
+            
+            // Draw cropped parts
+            const drawPart = (id, box) => {
+                const c = document.getElementById(id);
+                // remove near white background
+                let temp = document.createElement('canvas');
+                temp.width = box.w; temp.height = box.h;
+                let tctx = temp.getContext('2d');
+                tctx.drawImage(img, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+                let data = tctx.getImageData(0,0,box.w,box.h);
+                for(let i=0; i<data.data.length; i+=4) {
+                    if(data.data[i]>240 && data.data[i+1]>240 && data.data[i+2]>240) data.data[i+3] = 0;
+                }
+                c.width = box.w; c.height = box.h;
+                c.getContext('2d').putImageData(data, 0, 0);
+            };
+            
+            drawPart('head', slices.head);
+            drawPart('body', slices.body);
+            drawPart('tail', slices.tail);
+        };
+    </script>
+</body>
+</html>

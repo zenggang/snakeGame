@@ -1,7 +1,7 @@
 class PropsManager {
     constructor() {
         this.props = [];
-        this.maxProps = 50; // 场上最大道具数
+        this.maxProps = 80; // 场上最大道具数
         this.spawnRadius = 1500; // 生成范围
     }
 
@@ -11,24 +11,27 @@ class PropsManager {
             this.spawnProp(player);
         }
 
-        // 碰撞检测
+        // 碰撞检测与越界回收
         for (let i = this.props.length - 1; i >= 0; i--) {
             let prop = this.props[i];
             let dist = Math.hypot(player.x - prop.x, player.y - prop.y);
             
-            // 头半径 + 道具半径 的碰撞检测
+            // 头半径 + 道具半径 的碰撞检测 (吃掉)
             if (dist < player.radius + prop.radius) {
-                // 吃掉道具
                 this.consumeProp(player, prop);
+                this.props.splice(i, 1);
+            } 
+            // 若玩家走出了 1500 像素远，则直接回收这个道具（释放槽位重新在前方刷新）
+            else if (dist > 1500) {
                 this.props.splice(i, 1);
             }
         }
     }
 
     spawnProp(player) {
-        // 随机在玩家周围但不在屏幕内的位置生成（简化：随机在一个圈内）
+        // 随机在玩家周围但不在屏幕内的位置生成
         let angle = Math.random() * Math.PI * 2;
-        let r = Math.random() * (this.spawnRadius - 500) + 500; // 距离玩家500 - 1500像素
+        let r = Math.random() * (this.spawnRadius - 800) + 800; // 距离玩家800 - 1500像素
         
         // 7:3 比例生成增益和减益
         let isBuff = Math.random() < 0.7;

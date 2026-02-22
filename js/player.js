@@ -62,14 +62,29 @@ class Player {
         if (this.pathHistory.length > maxLength) {
             this.pathHistory.length = maxLength;
         }
+
+        // 自杀（咬到自己身体）判定
+        // 前几节因为转弯半径问题可能会有重叠缓冲，所以从第 3 节身体开始检测
+        for (let i = 3; i <= this.segments; i++) {
+            let index = i * this.historySpacing;
+            if (index < this.pathHistory.length) {
+                const sPoint = this.pathHistory[index];
+                const distToBody = Math.hypot(this.x - sPoint.x, this.y - sPoint.y);
+                // 距离过近代表咬到了（考虑一点容错值）
+                if (distToBody < this.radius) {
+                    if (typeof window.onGameOver === 'function') {
+                        window.onGameOver();
+                    }
+                    return; // 一死直接中断移动
+                }
+            }
+        }
     }
 
     draw(ctx, camera) {
         if (!assets.allLoaded) return; // 图片没加载完不画
 
-        const headImg = assets.getImage('dog_head');
-        const bodyImg = assets.getImage('dog_body');
-        const tailImg = assets.getImage('dog_tail');
+        const charImg = assets.getImage('character');
         const sData = assets.slices.character;
 
         // 1. 先绘制身体（从最后一个节往前画）
@@ -84,22 +99,28 @@ class Player {
                 const screenX = point.x - camera.x;
                 const screenY = point.y - camera.y;
                 
-                // 计算当前节点由于历史运动带出的朝向（用于旋转）
+                // 计算当前节点真正朝向头部的切线角度
                 let angle = 0;
-                if (index + 1 < this.pathHistory.length) {
+                if (index - 1 >= 0) {
+                    const nextP = this.pathHistory[index - 1]; // 朝向头部的最近点
+                    angle = Math.atan2(nextP.y - point.y, nextP.x - point.x);
+                } else if (index + 1 < this.pathHistory.length) {
                     const prevP = this.pathHistory[index + 1];
-                    angle = Math.atan2(prevP.y - point.y, prevP.x - point.x);
+                    angle = Math.atan2(point.y - prevP.y, point.x - prevP.x);
                 }
 
                 ctx.save();
                 ctx.translate(screenX, screenY);
-                // 根据方向做一个简单的补偿旋转（如果是鼠标跟随）
                 ctx.rotate(angle);
+                // 当朝左移动时，垂直翻转让肉卷的肚皮也能始终保持在下方
+                if (Math.abs(angle) > Math.PI / 2) {
+                    ctx.scale(1, -1);
+                }
                 
                 // 绘制躯干切图
-                if (bodyImg) {
-                    ctx.drawImage(bodyImg, 
-                        0, 0, bodyImg.width, bodyImg.height,
+                if (charImg) {
+                    ctx.drawImage(charImg, 
+                        sData.body.sx, sData.body.sy, sData.body.sw, sData.body.sh,
                         -sData.body.displayW/2, -sData.body.displayH/2, 
                         sData.body.displayW, sData.body.displayH
                     );
@@ -115,19 +136,29 @@ class Player {
             const tailP = this.pathHistory[lastIndex];
             if (tailP) {
                 let tailAngle = 0;
-                if (lastIndex + 1 < this.pathHistory.length) {
+                if (lastIndex - 1 >= 0) {
+                    const nextP = this.pathHistory[lastIndex - 1]; // 朝向头部的最近点
+                    tailAngle = Math.atan2(nextP.y - tailP.y, nextP.x - tailP.x);
+                } else if (lastIndex + 1 < this.pathHistory.length) {
                     const prevP = this.pathHistory[lastIndex + 1];
-                    tailAngle = Math.atan2(prevP.y - tailP.y, prevP.x - tailP.x);
+                    tailAngle = Math.atan2(tailP.y - prevP.y, tailP.x - prevP.x);
                 }
-                const tailX = tailP.x - camera.x - Math.cos(tailAngle) * 20;
-                const tailY = tailP.y - camera.y - Math.sin(tailAngle) * 20;
+                
+                // 尾巴衔接处往后退一点避免吃进身子里
+                const tailX = tailP.x - camera.x - Math.cos(tailAngle) * 15;
+                const tailY = tailP.y - camera.y - Math.sin(tailAngle) * 15;
                 
                 ctx.save();
                 ctx.translate(tailX, tailY);
                 ctx.rotate(tailAngle);
-                if (tailImg) {
-                    ctx.drawImage(tailImg,
-                        0, 0, tailImg.width, tailImg.height,
+                // 同样适配向左边走时的防倒置翻转
+                if (Math.abs(tailAngle) > Math.PI / 2) {
+                    ctx.scale(1, -1);
+                }
+                
+                if (charImg) {
+                    ctx.drawImage(charImg,
+                        sData.butt.sx, sData.butt.sy, sData.butt.sw, sData.butt.sh,
                         -sData.butt.displayW/2, -sData.butt.displayH/2,
                         sData.butt.displayW, sData.butt.displayH
                     );
@@ -158,9 +189,9 @@ class Player {
         ctx.rotate(headAngle);
         
         // 渲染头部贴图
-        if (headImg) {
-            ctx.drawImage(headImg,
-                0, 0, headImg.width, headImg.height,
+        if (charImg) {
+            ctx.drawImage(charImg,
+                sData.head.sx, sData.head.sy, sData.head.sw, sData.head.sh,
                 -sData.head.displayW/2, -sData.head.displayH/2,
                 sData.head.displayW, sData.head.displayH
             );

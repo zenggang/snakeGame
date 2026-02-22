@@ -64,9 +64,7 @@ function init() {
     
     // 加载全部美术素材然后显示首页背景
     assets.load({
-        'dog_head': 'assets/dog_head.png',
-        'dog_body': 'assets/dog_body.png',
-        'dog_tail': 'assets/dog_tail.png',
+        'character': 'assets/character.png?v=' + Date.now(), // 增加时间戳防止浏览器死缓存旧的原画
         'props': 'assets/props.png',
         'scene': 'assets/scene.png'
     }, () => {
