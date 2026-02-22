@@ -38,6 +38,9 @@ function startGame() {
     propsManager = new PropsManager();
     lastTime = performance.now();
     
+    // 尝试获取手机端重力感应权限（如果需要点击才能触发的话，必须在这里执行）
+    Input.requestGravityPermission();
+    
     if (!animationId) {
         animationId = requestAnimationFrame(gameLoop);
     }
