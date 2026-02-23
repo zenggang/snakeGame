@@ -71,12 +71,24 @@ function init() {
     startBtn.addEventListener('click', startGame);
     restartBtn.addEventListener('click', startGame);
     
-    // 加载全部美术素材然后显示首页背景
+    // 加载全部美术素材，显示进度条
+    const loadingBar = document.getElementById('loading-bar-fill');
+    const loadingPercent = document.getElementById('loading-percent');
+    const loadingScreen = document.getElementById('loading-screen');
+    
     assets.load({
         'spritesheet': 'assets/SpriteSheet_transparent.png?v=' + Date.now(),
         'scene': 'assets/scene.png'
     }, () => {
+        // 加载完毕：隐藏加载画面，显示开始界面
+        if (loadingScreen) loadingScreen.classList.remove('active');
+        startScreen.classList.add('active');
         drawBackgroundOnly();
+    }, (loaded, total) => {
+        // 进度回调：更新进度条
+        const pct = Math.round((loaded / total) * 100);
+        if (loadingBar) loadingBar.style.width = pct + '%';
+        if (loadingPercent) loadingPercent.textContent = pct + '%';
     });
 }
 

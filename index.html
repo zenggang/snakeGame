@@ -11,8 +11,18 @@
         <!-- Canvas 画布 -->
         <canvas id="gameCanvas"></canvas>
         
+        <!-- 资源加载画面 -->
+        <div id="loading-screen" class="screen active" style="background: #1a1a2e;">
+            <h1 style="font-size: 36px; margin-bottom: 30px;">🐕 皮皮狗贪吃蛇</h1>
+            <p style="margin-bottom: 20px; color: #aaa;">正在加载资源...</p>
+            <div id="loading-bar-bg" style="width: 260px; height: 16px; background: rgba(255,255,255,0.15); border-radius: 8px; overflow: hidden;">
+                <div id="loading-bar-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ff6b6b, #ff9f43); border-radius: 8px; transition: width 0.2s;"></div>
+            </div>
+            <p id="loading-percent" style="margin-top: 12px; font-size: 14px; color: #888;">0%</p>
+        </div>
+        
         <!-- UI 蒙层 -->
-        <div id="start-screen" class="screen active">
+        <div id="start-screen" class="screen">
             <h1>皮皮狗贪吃蛇</h1>
             <p>使用鼠标、WASD 或 <b>手机重力倾斜</b> 控制方向</p>
             <div class="rules">

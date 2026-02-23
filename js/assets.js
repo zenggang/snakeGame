@@ -78,7 +78,7 @@ class AssetManager {
         };
     }
 
-    load(sources, callback) {
+    load(sources, callback, onProgress) {
         this.totalCount = Object.keys(sources).length;
         if (this.totalCount === 0) {
             this.allLoaded = true;
@@ -91,6 +91,9 @@ class AssetManager {
             img.onload = () => {
                 this.images[key] = img;
                 this.loadedCount++;
+                if (onProgress) {
+                    onProgress(this.loadedCount, this.totalCount);
+                }
                 if (this.loadedCount === this.totalCount) {
                     this.allLoaded = true;
                     if(callback) callback();
@@ -100,6 +103,9 @@ class AssetManager {
             img.onerror = () => {
                 console.error(`加载图片失败: ${sources[key]}`);
                 this.loadedCount++;
+                if (onProgress) {
+                    onProgress(this.loadedCount, this.totalCount);
+                }
             }
             img.src = sources[key];
         }
