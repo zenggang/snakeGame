@@ -20,26 +20,34 @@ const Input = {
         y: 0
     },
     gravityEnabled: false, // 用户是否主动开启了重力模式
+    
+    // 虚拟摇杆状态
+    joystick: {
+        active: false,
+        dx: 0,
+        dy: 0
+    },
 
     toggleGravity() {
-        const dpad = document.getElementById('dpad');
         const toggleBtn = document.getElementById('gravity-toggle');
         
         if (this.gravityEnabled) {
-            // 关闭重力模式，回到按钮模式
+            // 关闭重力模式，回到摇杆模式
             this.gravityEnabled = false;
             this.gravity.active = false;
             this.gravity.x = 0;
             this.gravity.y = 0;
-            if (dpad) dpad.style.display = 'flex';
+            const joystick = document.getElementById('joystick');
+            if (joystick) joystick.style.display = 'block';
             if (toggleBtn) {
                 toggleBtn.textContent = '🔄 切换重力模式';
                 toggleBtn.classList.remove('active');
             }
         } else {
-            // 开启重力模式，隐藏按钮
+            // 开启重力模式，隐藏摇杆
             this.gravityEnabled = true;
-            if (dpad) dpad.style.display = 'none';
+            const joystick = document.getElementById('joystick');
+            if (joystick) joystick.style.display = 'none';
             if (toggleBtn) {
                 toggleBtn.textContent = '🎮 切换按钮模式';
                 toggleBtn.classList.add('active');
@@ -102,6 +110,11 @@ const Input = {
     },
 
     init() {
+        // 检测触屏设备（兼容微信等内嵌浏览器）
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            document.body.classList.add('touch-device');
+        }
+        
         // 键盘事件监听
         window.addEventListener('keydown', (e) => {
             if (this.keys.hasOwnProperty(e.key) || this.keys.hasOwnProperty(e.code)) {
@@ -133,35 +146,53 @@ const Input = {
              this.mouse.active = false;
         });
         
-        // 移动端虚拟方向键绑定
-        const dpadMap = {
-            'dpad-up': 'ArrowUp',
-            'dpad-down': 'ArrowDown',
-            'dpad-left': 'ArrowLeft',
-            'dpad-right': 'ArrowRight'
-        };
+        // 虚拟摇杆触摸事件
+        const joystickEl = document.getElementById('joystick');
+        const knobEl = document.getElementById('joystick-knob');
         
-        Object.entries(dpadMap).forEach(([btnId, keyName]) => {
-            const btn = document.getElementById(btnId);
-            if (!btn) return;
+        if (joystickEl && knobEl) {
+            const maxDrag = 40; // 摇杆最大拖动距离(px)
             
-            const press = (e) => {
+            const handleTouch = (e) => {
                 e.preventDefault();
-                this.keys[keyName] = true;
+                const rect = joystickEl.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const touch = e.touches[0];
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+                
+                // 限制在最大半径内
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > maxDrag) {
+                    dx = (dx / dist) * maxDrag;
+                    dy = (dy / dist) * maxDrag;
+                }
+                
+                // 移动摇杆旋钮
+                knobEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+                
+                // 设置方向输入（归一化到 -1~1）
+                this.joystick.active = true;
+                this.joystick.dx = dx / maxDrag;
+                this.joystick.dy = dy / maxDrag;
                 this.mouse.active = false;
                 this.gravity.active = false;
-                btn.classList.add('pressed');
-            };
-            const release = (e) => {
-                e.preventDefault();
-                this.keys[keyName] = false;
-                btn.classList.remove('pressed');
             };
             
-            btn.addEventListener('touchstart', press, { passive: false });
-            btn.addEventListener('touchend', release, { passive: false });
-            btn.addEventListener('touchcancel', release, { passive: false });
-        });
+            const handleEnd = (e) => {
+                e.preventDefault();
+                knobEl.style.transform = 'translate(-50%, -50%)';
+                this.joystick.active = false;
+                this.joystick.dx = 0;
+                this.joystick.dy = 0;
+            };
+            
+            joystickEl.addEventListener('touchstart', handleTouch, { passive: false });
+            joystickEl.addEventListener('touchmove', handleTouch, { passive: false });
+            joystickEl.addEventListener('touchend', handleEnd, { passive: false });
+            joystickEl.addEventListener('touchcancel', handleEnd, { passive: false });
+        }
         
         // 重力模式切换按钮
         const gravityToggle = document.getElementById('gravity-toggle');
@@ -191,8 +222,18 @@ const Input = {
             // 优先使用手机重力感应
             dx = this.gravity.x;
             dy = this.gravity.y;
-            // 倾斜本身已经归一化并提供了平滑度，不再做长度 1 的强制固定
             const length = Math.sqrt(dx * dx + dy * dy);
+            if (length > 1) {
+                dx /= length;
+                dy /= length;
+            }
+            return { x: dx, y: dy };
+        } else if (this.joystick.active) {
+            // 虚拟摇杆输入
+            dx = this.joystick.dx;
+            dy = this.joystick.dy;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            if (length < 0.15) return null; // 死区
             if (length > 1) {
                 dx /= length;
                 dy /= length;
