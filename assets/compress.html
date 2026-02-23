@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Compressor</title>
+</head>
+<body>
+    <h1 id="status">Loading...</h1>
+    <script>
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 缩小到原尺寸的 50%
+            const targetW = img.width / 2;
+            const targetH = img.height / 2;
+            canvas.width = targetW;
+            canvas.height = targetH;
+            
+            ctx.drawImage(img, 0, 0, targetW, targetH);
+            
+            // 压缩为 WebP 格式，80% 质量
+            const dataUrl = canvas.toDataURL('image/webp', 0.8);
+            
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = 'SpriteSheet_half.webp';
+            document.body.appendChild(a);
+            a.click();
+            
+            document.getElementById('status').innerText = 'DONE';
+        };
+        img.onerror = () => {
+            document.getElementById('status').innerText = 'ERROR';
+        };
+        img.src = 'SpriteSheet_transparent.png';
+    </script>
+</body>
+</html>

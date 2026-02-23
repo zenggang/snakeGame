@@ -8,72 +8,72 @@ class AssetManager {
         // Hardcoded precise sprite slices from Python analysis of SpriteSheet.png
         this.slices = {
             character: {
-                head_down: { sx: 69, sy: 56, sw: 125, sh: 168, displayW: 75, displayH: 100 },
-                head_down_open: { sx: 256, sy: 61, sw: 125, sh: 162, displayW: 75, displayH: 97 },
-                head_left: { sx: 424, sy: 85, sw: 169, sh: 138, displayW: 100, displayH: 82 },
-                head_right: { sx: 656, sy: 85, sw: 168, sh: 138, displayW: 100, displayH: 82 },
-                head_up: { sx: 68, sy: 289, sw: 127, sh: 147, displayW: 75, displayH: 88 },
-                body: { sx: 916, sy: 101, sw: 143, sh: 78, displayW: 85, displayH: 46 },     // horizontal body segment
-                butt: { sx: 2229, sy: 114, sw: 158, sh: 70, displayW: 94, displayH: 42 }     // horizontal tail segment
+                head_down: { sx: 34, sy: 28, sw: 62, sh: 84, displayW: 75, displayH: 100 },
+                head_down_open: { sx: 128, sy: 30, sw: 62, sh: 81, displayW: 75, displayH: 97 },
+                head_left: { sx: 212, sy: 42, sw: 84, sh: 69, displayW: 100, displayH: 82 },
+                head_right: { sx: 328, sy: 42, sw: 84, sh: 69, displayW: 100, displayH: 82 },
+                head_up: { sx: 34, sy: 144, sw: 63, sh: 73, displayW: 75, displayH: 88 },
+                body: { sx: 458, sy: 50, sw: 71, sh: 39, displayW: 85, displayH: 46 },     // horizontal body segment
+                butt: { sx: 1114, sy: 57, sw: 79, sh: 35, displayW: 94, displayH: 42 }     // horizontal tail segment
             },
             props: {
-                bone_s: { sx: 69, sy: 549, sw: 135, sh: 142, displayW: 40, displayH: 42 },
-                bone_m: { sx: 219, sy: 520, sw: 183, sh: 190, displayW: 55, displayH: 57 },
-                bone_l: { sx: 396, sy: 489, sw: 232, sh: 245, displayW: 70, displayH: 74 },
+                bone_s: { sx: 34, sy: 274, sw: 67, sh: 71, displayW: 40, displayH: 42 },
+                bone_m: { sx: 109, sy: 260, sw: 91, sh: 95, displayW: 55, displayH: 57 },
+                bone_l: { sx: 198, sy: 244, sw: 116, sh: 122, displayW: 70, displayH: 74 },
                 
                 bug_green: [
-                    { sx: 1723, sy: 558, sw: 138, sh: 122, displayW: 55, displayH: 49 },
-                    { sx: 1892, sy: 559, sw: 138, sh: 121, displayW: 55, displayH: 48 },
-                    { sx: 2063, sy: 559, sw: 137, sh: 121, displayW: 55, displayH: 48 }
+                    { sx: 861, sy: 279, sw: 69, sh: 61, displayW: 55, displayH: 49 },
+                    { sx: 946, sy: 279, sw: 69, sh: 60, displayW: 55, displayH: 48 },
+                    { sx: 1031, sy: 279, sw: 68, sh: 60, displayW: 55, displayH: 48 }
                 ],
                 bug_red: [
-                    { sx: 2280, sy: 569, sw: 133, sh: 107, displayW: 53, displayH: 43 },
-                    { sx: 2443, sy: 561, sw: 125, sh: 117, displayW: 50, displayH: 47 },
-                    { sx: 2602, sy: 569, sw: 132, sh: 107, displayW: 53, displayH: 43 }
+                    { sx: 1140, sy: 284, sw: 66, sh: 53, displayW: 53, displayH: 43 },
+                    { sx: 1221, sy: 280, sw: 62, sh: 58, displayW: 50, displayH: 47 },
+                    { sx: 1301, sy: 284, sw: 66, sh: 53, displayW: 53, displayH: 43 }
                 ],
-                candy: { sx: 850, sy: 545, sw: 145, sh: 139, displayW: 45, displayH: 43 },
-                bread: { sx: 84, sy: 806, sw: 137, sh: 113, displayW: 50, displayH: 41 },
+                candy: { sx: 425, sy: 272, sw: 72, sh: 69, displayW: 45, displayH: 43 },
+                bread: { sx: 42, sy: 403, sw: 68, sh: 56, displayW: 50, displayH: 41 },
                 poop: [
-                    { sx: 1243, sy: 583, sw: 109, sh: 97, displayW: 42, displayH: 37 },
-                    { sx: 1396, sy: 583, sw: 110, sh: 97, displayW: 42, displayH: 37 },
-                    { sx: 1548, sy: 583, sw: 109, sh: 97, displayW: 42, displayH: 37 }
+                    { sx: 621, sy: 291, sw: 54, sh: 48, displayW: 42, displayH: 37 },
+                    { sx: 698, sy: 291, sw: 55, sh: 48, displayW: 42, displayH: 37 },
+                    { sx: 774, sy: 291, sw: 54, sh: 48, displayW: 42, displayH: 37 }
                 ]
             },
             map: {
                 // 从大地图预览图中提取的纯净小区域（避免过渡边缘和网格线）
-                grass: { sx: 600, sy: 1300, sw: 64, sh: 64 },   // 纯草地
-                water: { sx: 130, sy: 1180, sw: 64, sh: 64 },   // 纯水面
-                dirt:  { sx: 1150, sy: 1300, sw: 64, sh: 64 },  // 纯泥土
+                grass: { sx: 300, sy: 650, sw: 32, sh: 32 },   // 纯草地
+                water: { sx: 65, sy: 590, sw: 32, sh: 32 },   // 纯水面
+                dirt:  { sx: 575, sy: 650, sw: 32, sh: 32 },  // 纯泥土
                 
-                bridge_h: { sx: 1364, sy: 1026, sw: 285, sh: 195 },
-                bridge_v: { sx: 1425, sy: 1252, sw: 164, sh: 206 },
-                fence_h: { sx: 1688, sy: 1081, sw: 274, sh: 108 },
-                fence_v: { sx: 1425, sy: 1252, sw: 164, sh: 206 }
+                bridge_h: { sx: 682, sy: 513, sw: 142, sh: 97 },
+                bridge_v: { sx: 712, sy: 626, sw: 82, sh: 103 },
+                fence_h: { sx: 844, sy: 540, sw: 137, sh: 54 },
+                fence_v: { sx: 712, sy: 626, sw: 82, sh: 103 }
             },
             decor: {
-                flower_pink: { sx: 483, sy: 810, sw: 90, sh: 107, displayW: 45, displayH: 53.5 },
-                flower_red: { sx: 617, sy: 809, sw: 86, sh: 107, displayW: 43, displayH: 53.5 },
-                flower_yellow: { sx: 745, sy: 808, sw: 79, sh: 107, displayW: 39.5, displayH: 53.5 },
-                flower_white_blue: { sx: 871, sy: 806, sw: 76, sh: 111, displayW: 38, displayH: 55.5 },
-                flower_blue: { sx: 994, sy: 809, sw: 96, sh: 106, displayW: 48, displayH: 53 },
-                flower_small_white: { sx: 1135, sy: 817, sw: 85, sh: 97, displayW: 42.5, displayH: 48.5 },
-                flower_small_blue: { sx: 1266, sy: 826, sw: 89, sh: 83, displayW: 44.5, displayH: 41.5 },
-                grass_tuft_1: { sx: 1404, sy: 834, sw: 66, sh: 53, displayW: 33, displayH: 26.5 },
-                grass_tuft_2: { sx: 1519, sy: 846, sw: 62, sh: 55, displayW: 31, displayH: 27.5 },
-                rock_1: { sx: 1628, sy: 852, sw: 60, sh: 50, displayW: 40, displayH: 33.3 },
-                rock_2: { sx: 1786, sy: 847, sw: 86, sh: 61, displayW: 57.3, displayH: 40.6 },
-                bush_1: { sx: 1924, sy: 822, sw: 128, sh: 92, displayW: 85.3, displayH: 61.3 },
-                bush_2: { sx: 2099, sy: 833, sw: 110, sh: 80, displayW: 73.3, displayH: 53.3 },
-                bush_3: { sx: 2260, sy: 835, sw: 119, sh: 81, displayW: 79.3, displayH: 54 },
-                bush_4: { sx: 2430, sy: 810, sw: 136, sh: 109, displayW: 90.6, displayH: 72.6 },
-                mushroom_house_red_1: { sx: 1993, sy: 1028, sw: 184, sh: 207, displayW: 140, displayH: 157.5 },
-                mushroom_house_red_2: { sx: 2195, sy: 1027, sw: 185, sh: 208, displayW: 140.7, displayH: 158.2 },
-                palm_tree_1: { sx: 2403, sy: 1036, sw: 168, sh: 197, displayW: 127.8, displayH: 149.9 },
-                palm_tree_2: { sx: 2598, sy: 1031, sw: 164, sh: 201, displayW: 124.8, displayH: 152.9 },
-                mushroom_house_orange: { sx: 1993, sy: 1252, sw: 184, sh: 209, displayW: 140, displayH: 159 },
-                stump: { sx: 2396, sy: 1258, sw: 180, sh: 196, displayW: 136.9, displayH: 149.1 },
-                flower_bed_1: { sx: 2588, sy: 1259, sw: 181, sh: 195, displayW: 137.7, displayH: 148.4 },
-                flower_bed_2: { sx: 2202, sy: 1302, sw: 171, sh: 157, displayW: 130.1, displayH: 119.5 }
+                flower_pink: { sx: 241, sy: 405, sw: 45, sh: 53, displayW: 45, displayH: 53.5 },
+                flower_red: { sx: 308, sy: 404, sw: 43, sh: 53, displayW: 43, displayH: 53.5 },
+                flower_yellow: { sx: 372, sy: 404, sw: 39, sh: 53, displayW: 39.5, displayH: 53.5 },
+                flower_white_blue: { sx: 435, sy: 403, sw: 38, sh: 55, displayW: 38, displayH: 55.5 },
+                flower_blue: { sx: 497, sy: 404, sw: 48, sh: 53, displayW: 48, displayH: 53 },
+                flower_small_white: { sx: 567, sy: 408, sw: 42, sh: 48, displayW: 42.5, displayH: 48.5 },
+                flower_small_blue: { sx: 633, sy: 413, sw: 44, sh: 41, displayW: 44.5, displayH: 41.5 },
+                grass_tuft_1: { sx: 702, sy: 417, sw: 33, sh: 26, displayW: 33, displayH: 26.5 },
+                grass_tuft_2: { sx: 759, sy: 423, sw: 31, sh: 27, displayW: 31, displayH: 27.5 },
+                rock_1: { sx: 814, sy: 426, sw: 30, sh: 25, displayW: 40, displayH: 33.3 },
+                rock_2: { sx: 893, sy: 423, sw: 43, sh: 30, displayW: 57.3, displayH: 40.6 },
+                bush_1: { sx: 962, sy: 411, sw: 64, sh: 46, displayW: 85.3, displayH: 61.3 },
+                bush_2: { sx: 1049, sy: 416, sw: 55, sh: 40, displayW: 73.3, displayH: 53.3 },
+                bush_3: { sx: 1130, sy: 417, sw: 59, sh: 40, displayW: 79.3, displayH: 54 },
+                bush_4: { sx: 1215, sy: 405, sw: 68, sh: 54, displayW: 90.6, displayH: 72.6 },
+                mushroom_house_red_1: { sx: 996, sy: 514, sw: 92, sh: 103, displayW: 140, displayH: 157.5 },
+                mushroom_house_red_2: { sx: 1097, sy: 513, sw: 92, sh: 104, displayW: 140.7, displayH: 158.2 },
+                palm_tree_1: { sx: 1201, sy: 518, sw: 84, sh: 98, displayW: 127.8, displayH: 149.9 },
+                palm_tree_2: { sx: 1299, sy: 515, sw: 82, sh: 100, displayW: 124.8, displayH: 152.9 },
+                mushroom_house_orange: { sx: 996, sy: 626, sw: 92, sh: 104, displayW: 140, displayH: 159 },
+                stump: { sx: 1198, sy: 629, sw: 90, sh: 98, displayW: 136.9, displayH: 149.1 },
+                flower_bed_1: { sx: 1294, sy: 629, sw: 90, sh: 97, displayW: 137.7, displayH: 148.4 },
+                flower_bed_2: { sx: 1101, sy: 651, sw: 85, sh: 78, displayW: 130.1, displayH: 119.5 }
             }
         };
     }

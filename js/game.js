@@ -77,7 +77,7 @@ function init() {
     const loadingScreen = document.getElementById('loading-screen');
     
     assets.load({
-        'spritesheet': 'assets/SpriteSheet_transparent.png?v=' + Date.now(),
+        'spritesheet': 'assets/SpriteSheet_half.png?v=' + Date.now(),
         'scene': 'assets/scene.png'
     }, () => {
         // 加载完毕：隐藏加载画面，显示开始界面
