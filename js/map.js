@@ -222,10 +222,13 @@ class MapManager {
 
         const sMap = assets.slices.map;
 
+        const vs = window.viewScale || 1;
+        const effW = ctx.canvas.width / vs;
+        const effH = ctx.canvas.height / vs;
         const startCol = Math.max(0, Math.floor(camera.x / this.tileSize));
-        const endCol = Math.min(this.cols - 1, Math.floor((camera.x + window.innerWidth) / this.tileSize));
+        const endCol = Math.min(this.cols - 1, Math.floor((camera.x + effW) / this.tileSize));
         const startRow = Math.max(0, Math.floor(camera.y / this.tileSize));
-        const endRow = Math.min(this.rows - 1, Math.floor((camera.y + window.innerHeight) / this.tileSize));
+        const endRow = Math.min(this.rows - 1, Math.floor((camera.y + effH) / this.tileSize));
 
         for (let x = startCol; x <= endCol; x++) {
             for (let y = startRow; y <= endRow; y++) {

@@ -72,6 +72,9 @@ window.onGameOver = function(reason = "未知原因") {
 };
 
 function init() {
+    window.isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    window.viewScale = window.isMobile ? 0.5 : 1.0;
+    
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
     Input.init();
@@ -117,9 +120,11 @@ function update(dt) {
     // 更新道具
     propsManager.update(player, dt);
     
-    // 摄像机跟随主角
-    camera.x = player.x - canvas.width / 2;
-    camera.y = player.y - canvas.height / 2;
+    // 摄像机跟随主角（考虑缩放后的视口大小）
+    const vWidth = canvas.width / (window.viewScale || 1.0);
+    const vHeight = canvas.height / (window.viewScale || 1.0);
+    camera.x = player.x - vWidth / 2;
+    camera.y = player.y - vHeight / 2;
 }
 
 function drawGrid() {
@@ -213,8 +218,12 @@ function drawHUD() {
 }
 
 function drawBackgroundOnly() {
+    const vs = window.viewScale || 1;
+    const effW = canvas.width / vs;
+    const effH = canvas.height / vs;
+    
     ctx.fillStyle = '#6ab04c';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, effW, effH);
     
     // 渲染无缝大背景铺砖
     if (assets.allLoaded) {
@@ -227,10 +236,9 @@ function drawBackgroundOnly() {
             const startY = Math.floor(camera.y / sh) * sh - camera.y;
             
             ctx.save();
-            ctx.globalAlpha = 0.8; // 让草地微透，不抢戏主角
-            // 渲染覆盖视口的九宫格平铺地图
-            for (let x = startX - sw; x < window.innerWidth + sw; x += sw) {
-                for (let y = startY - sh; y < window.innerHeight + sh; y += sh) {
+            ctx.globalAlpha = 0.8;
+            for (let x = startX - sw; x < effW + sw; x += sw) {
+                for (let y = startY - sh; y < effH + sh; y += sh) {
                     ctx.drawImage(sceneImg, x, y, sw, sh);
                 }
             }
@@ -240,18 +248,28 @@ function drawBackgroundOnly() {
 }
 
 function draw() {
-    // Fill fallback background
-    drawBackgroundOnly();
-    
     if (gameState === 'playing' || gameState === 'gameover') {
+        const vs = window.viewScale || 1.0;
+        ctx.save();
+        if (vs !== 1.0) ctx.scale(vs, vs);
+        
+        // 背景层也在缩放空间内绘制，保证与地形/道具比例一致
+        drawBackgroundOnly();
+        
         // 先渲染地形
         if (mapManager) mapManager.draw(ctx, camera);
         
         // 绘制游戏元素，传入摄像机进行坐标转换
         propsManager.draw(ctx, camera);
         if (player) player.draw(ctx, camera);
+        
+        ctx.restore();
+        
+        // UI 层不受游戏空间缩放影响
         drawHUD();
         drawMinimap();
+    } else {
+        drawBackgroundOnly();
     }
 }
 
@@ -260,7 +278,8 @@ function drawMinimap() {
     
     const mapW = mapManager.width;
     const mapH = mapManager.height;
-    const mmW = 160;
+    // 移动端小地图也稍微缩小
+    const mmW = window.isMobile ? 120 : 160;
     const mmH = Math.round(mmW * mapH / mapW);
     const mmX = canvas.width - mmW - 12;
     const mmY = 12;
@@ -335,14 +354,16 @@ function drawMinimap() {
         ctx.fill();
     }
     
-    // 当前视口框
+    // 当前视口框（真实视野区域）
+    const vWidth = canvas.width / (window.viewScale || 1.0);
+    const vHeight = canvas.height / (window.viewScale || 1.0);
     ctx.strokeStyle = 'rgba(255,255,255,0.8)';
     ctx.lineWidth = 1;
     ctx.strokeRect(
         mmX + Math.max(0, camera.x) * scaleX,
         mmY + Math.max(0, camera.y) * scaleY,
-        canvas.width * scaleX,
-        canvas.height * scaleY
+        vWidth * scaleX,
+        vHeight * scaleY
     );
     
     // 边框

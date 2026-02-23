@@ -41,6 +41,8 @@ canvas {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .screen.active {
@@ -238,4 +240,57 @@ body.touch-device #gravity-toggle {
     background: rgba(255, 215, 0, 0.6);
     border-color: rgba(255, 215, 0, 0.9);
     animation: pulse 0.5s ease-in-out infinite alternate;
+}
+
+/* 强制横屏提示 */
+#landscape-hint {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #111;
+    color: white;
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex-direction: column;
+}
+
+#landscape-hint .hint-content {
+    animation: tilt 2s infinite ease-in-out;
+}
+
+@keyframes tilt {
+    0% { transform: rotate(0deg); }
+    30% { transform: rotate(-90deg); }
+    70% { transform: rotate(-90deg); }
+    100% { transform: rotate(0deg); }
+}
+
+@media screen and (max-width: 900px) {
+    /* 开始/结算界面压缩 */
+    .screen h1 { font-size: 32px; margin-bottom: 15px; }
+    .screen p { font-size: 14px; margin-bottom: 8px; }
+    .rules { padding: 10px 15px; margin: 10px 0; }
+    .rules p { font-size: 13px; margin-bottom: 5px; }
+    .diff-btn { width: 180px; padding: 10px 20px; font-size: 16px; margin: 5px auto !important; }
+    .screen button { padding: 10px 24px; font-size: 16px; margin-top: 5px; }
+    /* 极短视口下改为顶部对齐可滚动 */
+    .screen { justify-content: flex-start; padding: 10px 0; }
+}
+
+/* 竖屏下强制显示遮罩 */
+@media screen and (orientation: portrait) and (max-width: 900px) {
+    #landscape-hint {
+        display: flex;
+    }
+}
+
+/* 控制按钮在横版下的更紧凑排列（靠右边缘） */
+@media screen and (orientation: landscape) and (max-width: 900px) {
+    #gravity-toggle { bottom: 20px; right: 20px; font-size: 13px; padding: 8px 12px; }
+    #boost-btn { bottom: 70px; right: 20px; font-size: 14px; padding: 10px 14px; }
+    #shield-btn { bottom: 125px; right: 20px; font-size: 14px; padding: 10px 14px; }
+    #joystick { bottom: 20px; left: 20px; width: 110px; height: 110px; }
+    #joystick-knob { width: 44px; height: 44px; }
 }

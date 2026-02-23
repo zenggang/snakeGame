@@ -259,8 +259,8 @@ class PropsManager {
             const screenX = prop.x - camera.x;
             const screenY = prop.y - camera.y;
             
-            if (screenX < -100 || screenX > window.innerWidth + 100 || 
-                screenY < -100 || screenY > window.innerHeight + 100) {
+            if (screenX < -100 || screenX > (window.innerWidth / (window.viewScale || 1)) + 100 || 
+                screenY < -100 || screenY > (window.innerHeight / (window.viewScale || 1)) + 100) {
                 continue;
             }
             
