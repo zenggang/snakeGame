@@ -231,9 +231,13 @@ const Input = {
             document.addEventListener('touchcancel', onTouchEnd, { passive: false });
         }
         
-        // 重力模式切换按钮
+        // 重力模式切换按钮（touchstart 优先，保留 click 兼容桌面端）
         const gravityToggle = document.getElementById('gravity-toggle');
         if (gravityToggle) {
+            gravityToggle.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+                this.toggleGravity();
+            }, { passive: false });
             gravityToggle.addEventListener('click', () => {
                 this.toggleGravity();
             });
@@ -242,22 +246,26 @@ const Input = {
         // 冲刺按钮
         const boostBtn = document.getElementById('boost-btn');
         if (boostBtn) {
+            boostBtn.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+                if (typeof player !== 'undefined') player.activateBoost();
+            }, { passive: false });
             boostBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                if (typeof player !== 'undefined') {
-                    player.activateBoost();
-                }
+                if (typeof player !== 'undefined') player.activateBoost();
             });
         }
         
         // 护盾按钮
         const shieldBtn = document.getElementById('shield-btn');
         if (shieldBtn) {
+            shieldBtn.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+                if (typeof player !== 'undefined') player.activateShield();
+            }, { passive: false });
             shieldBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                if (typeof player !== 'undefined') {
-                    player.activateShield();
-                }
+                if (typeof player !== 'undefined') player.activateShield();
             });
         }
     },
