@@ -3,7 +3,9 @@ class Player {
         // 世界坐标
         this.x = x;
         this.y = y;
-        this.radius = 20; // 头部大小
+        this.baseRadius = 20;
+        this.radius = 8; // 初始小狗
+        this.growthScale = 0.4; // 初始缩放比
         this.color = '#ff6b6b'; // 暂时代替材质色块
 
         this.speed = 200; // 每秒移动像素
@@ -26,7 +28,8 @@ class Player {
         this.score = 0; // 积分
         this.pathHistory = [];
         this.recordDistance = 2; // 历史记录点的间隔像素
-        this.segmentSpacing = 28; // 身体节点间的绝对距离大小
+        this.baseSegmentSpacing = 28;
+        this.segmentSpacing = Math.round(this.baseSegmentSpacing * this.growthScale);
         this.historySpacing = Math.round(this.segmentSpacing / this.recordDistance);
         
         // 初始化记录当前点
@@ -67,6 +70,12 @@ class Player {
                 this.shieldTimer = 0;
             }
         }
+        
+        // 体型成长：从小到大（segments 1→15 时 radius 8→20）
+        this.growthScale = Math.min(1, 0.4 + this.segments * 0.04);
+        this.radius = Math.round(this.baseRadius * this.growthScale);
+        this.segmentSpacing = Math.round(this.baseSegmentSpacing * this.growthScale);
+        this.historySpacing = Math.max(1, Math.round(this.segmentSpacing / this.recordDistance));
 
         // 从输入获取当前朝向（针对屏幕中心，因为摄像机一直对准头部）
         // 获取 Canvas 尺寸，默认主角在屏幕中心
@@ -186,6 +195,7 @@ class Player {
 
                 ctx.save();
                 ctx.translate(screenX, screenY);
+                ctx.scale(this.growthScale, this.growthScale);
                 ctx.rotate(angle);
                 if (Math.abs(angle) > Math.PI / 2) {
                     ctx.scale(1, -1);
@@ -217,11 +227,12 @@ class Player {
                     tailAngle = Math.atan2(tailP.y - prevP.y, tailP.x - prevP.x);
                 }
                 
-                const tailX = tailP.x - camera.x - Math.cos(tailAngle) * 15;
-                const tailY = tailP.y - camera.y - Math.sin(tailAngle) * 15;
+                const tailX = tailP.x - camera.x - Math.cos(tailAngle) * 15 * this.growthScale;
+                const tailY = tailP.y - camera.y - Math.sin(tailAngle) * 15 * this.growthScale;
                 
                 ctx.save();
                 ctx.translate(tailX, tailY);
+                ctx.scale(this.growthScale, this.growthScale);
                 ctx.rotate(tailAngle);
                 
                 // Tail piece we picked (sx:2229) is drawn horizontally.
@@ -252,6 +263,7 @@ class Player {
 
         ctx.save();
         ctx.translate(headScreenX, headScreenY);
+        ctx.scale(this.growthScale, this.growthScale);
         
         let headSlice = sData.head_right;
         

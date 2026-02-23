@@ -75,9 +75,9 @@ canvas {
 }
 
 .screen button {
-    margin-top: 30px;
-    padding: 15px 40px;
-    font-size: 24px;
+    margin-top: 10px;
+    padding: 12px 32px;
+    font-size: 20px;
     background: #ff6b6b;
     color: white;
     border: none;
@@ -88,13 +88,21 @@ canvas {
 }
 
 .screen button:hover {
-    background: #ff5252;
     transform: scale(1.05);
 }
 
 .screen button:active {
     transform: scale(0.95);
 }
+
+/* 难度按钮 */
+.diff-btn { display: block; width: 220px; margin: 8px auto !important; }
+.diff-easy { background: linear-gradient(135deg, #6ab04c, #78e08f); }
+.diff-easy:hover { background: linear-gradient(135deg, #78e08f, #6ab04c); }
+.diff-medium { background: linear-gradient(135deg, #f0932b, #ffbe76); }
+.diff-medium:hover { background: linear-gradient(135deg, #ffbe76, #f0932b); }
+.diff-hard { background: linear-gradient(135deg, #eb4d4b, #ff7979); }
+.diff-hard:hover { background: linear-gradient(135deg, #ff7979, #eb4d4b); }
 
 /* ===== 移动端控制 ===== */
 

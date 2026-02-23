@@ -1,7 +1,8 @@
 class PropsManager {
     constructor() {
         this.props = [];
-        this.maxProps = 80; // 场上最大道具数
+        const diff = window.difficulty || { maxProps: 80 };
+        this.maxProps = diff.maxProps || 80;
         this.spawnRadius = 1500; // 生成范围
     }
 
@@ -29,7 +30,8 @@ class PropsManager {
                     if (chaseDistSq < 300 * 300 && prop.chaseTimer <= 0) {
                         // 进入追踪状态，持续 2 秒
                         let chaseAngle = Math.atan2(player.y - prop.y, player.x - prop.x);
-                        let chaseSpeed = 120; // 追踪速度（主角 200，保证主角更快）
+                        const diff = window.difficulty || { chaseSpeed: 120 };
+                        let chaseSpeed = diff.chaseSpeed || 120;
                         prop.vx = Math.cos(chaseAngle) * chaseSpeed;
                         prop.vy = Math.sin(chaseAngle) * chaseSpeed;
                         prop.chaseTimer = 2000; // 追 2 秒就放弃
@@ -98,8 +100,9 @@ class PropsManager {
             }
         }
         
-        // 将 buff 概率下降至 0.25 减少整体骨头
-        let isBuff = Math.random() < 0.25;
+        // buff 概率受难度影响
+        const diff = window.difficulty || { buffChance: 0.25, bugSpeedMul: 1 };
+        let isBuff = Math.random() < (diff.buffChance || 0.25);
         let textureKey = '';
         let points = 0;
         let growth = 0;
@@ -138,10 +141,11 @@ class PropsManager {
         // 便便和增益一样不移动
         let isImmobile = isBuff || textureKey === 'poop';
         
-        // 虫子速度倍率：红虫 2 倍、绿虫 1.5 倍
-        let speedMul = 1;
-        if (textureKey === 'bug_red') speedMul = 2;
-        else if (textureKey === 'bug_green') speedMul = 1.5;
+        // 虫子速度倍率：基础倍率受难度影响
+        const baseMul = diff.bugSpeedMul || 1;
+        let speedMul = baseMul;
+        if (textureKey === 'bug_red') speedMul = baseMul * 2;
+        else if (textureKey === 'bug_green') speedMul = baseMul * 1.5;
         
         let prop = {
             x: px,

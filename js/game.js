@@ -19,7 +19,6 @@ let animationId;
 // UI 元素
 const startScreen = document.getElementById('start-screen');
 const gameOverScreen = document.getElementById('game-over-screen');
-const startBtn = document.getElementById('start-btn');
 const restartBtn = document.getElementById('restart-btn');
 const finalScoreEl = document.getElementById('final-score');
 const finalLengthEl = document.getElementById('final-length');
@@ -29,7 +28,15 @@ function resizeCanvas() {
     canvas.height = window.innerHeight;
 }
 
-function startGame() {
+// 难度配置
+const DIFFICULTY = {
+    easy:   { buffChance: 0.45, maxProps: 100, chaseSpeed: 60,  bugSpeedMul: 0.5, label: '简易' },
+    medium: { buffChance: 0.25, maxProps: 80,  chaseSpeed: 120, bugSpeedMul: 1.0, label: '中等' },
+    hard:   { buffChance: 0.15, maxProps: 60,  chaseSpeed: 180, bugSpeedMul: 2.0, label: '困难' }
+};
+
+function startGame(diff = 'medium') {
+    window.difficulty = DIFFICULTY[diff] || DIFFICULTY.medium;
     gameState = 'playing';
     startScreen.classList.remove('active');
     gameOverScreen.classList.remove('active');
@@ -39,9 +46,6 @@ function startGame() {
     player = new Player(4000, 3000); // 居中放置
     propsManager = new PropsManager();
     lastTime = performance.now();
-    
-    // 不再自动请求重力权限，改为用户手动切换
-    // Input.requestGravityPermission();
     
     if (!animationId) {
         lastTime = performance.now();
@@ -54,8 +58,13 @@ window.onGameOver = function(reason = "未知原因") {
     document.getElementById('death-reason').innerText = `死因: ${reason}`;
     finalScoreEl.innerText = `得分: ${player.score}`;
     finalLengthEl.innerText = `最大长度: ${player.segments}`;
+    
+    const finalDiffEl = document.getElementById('final-difficulty');
+    if (finalDiffEl && window.difficulty) {
+        finalDiffEl.innerText = `难度: ${window.difficulty.label}`;
+    }
+    
     gameOverScreen.classList.add('active');
-    // 停止动画循环
     if (animationId) {
         cancelAnimationFrame(animationId);
         animationId = null;
@@ -67,9 +76,13 @@ function init() {
     resizeCanvas();
     Input.init();
 
-    // 绑定按钮事件
-    startBtn.addEventListener('click', startGame);
-    restartBtn.addEventListener('click', startGame);
+    // 绑定难度按钮
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+        btn.addEventListener('click', () => startGame(btn.dataset.diff));
+    });
+    restartBtn.addEventListener('click', () => startGame(
+        (window.difficulty && Object.keys(DIFFICULTY).find(k => DIFFICULTY[k] === window.difficulty)) || 'medium'
+    ));
     
     // 加载全部美术素材，显示进度条
     const loadingBar = document.getElementById('loading-bar-fill');
@@ -133,7 +146,7 @@ function drawHUD() {
     if (gameState !== 'playing') return;
     
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(10, 10, 220, 108);
+    ctx.fillRect(10, 10, 220, 132);
     
     ctx.fillStyle = '#fff';
     ctx.font = '16px sans-serif';
@@ -158,6 +171,12 @@ function drawHUD() {
     } else {
         ctx.fillStyle = '#ffd700';
         ctx.fillText(`🛡️ x${player.shieldCharges} (E键)`, 20, 104);
+    }
+    
+    // 显示当前难度
+    if (window.difficulty) {
+        ctx.fillStyle = '#ff9f43';
+        ctx.fillText(`难度: ${window.difficulty.label}`, 20, 128);
     }
     
     // 同步更新移动端冲刺按钮

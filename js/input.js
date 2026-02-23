@@ -170,6 +170,7 @@ const Input = {
             
             const onTouchStart = (e) => {
                 if (touchId !== null) return; // 已经有一个摇杆触摸在跟踪
+                if (this.gravityEnabled) return; // 重力模式下不启动摇杆
                 const touch = e.changedTouches[0];
                 if (isOnButton(touch)) return; // 按钮区域不触发摇杆
                 

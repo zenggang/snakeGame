@@ -32,7 +32,9 @@
                 <p>🔴 红虫、🪨 石头、🚧 边界栏杆 (碰到即死!)</p>
                 <p>🪵 树木、🍄 房屋、🌺 花坛 (阻挡路线，需绕行)</p>
             </div>
-            <button id="start-btn">开始游戏</button>
+            <button id="start-btn" class="diff-btn diff-easy" data-diff="easy">🌱 简易模式</button>
+            <button id="start-btn-medium" class="diff-btn diff-medium" data-diff="medium">⚔️ 中等模式</button>
+            <button id="start-btn-hard" class="diff-btn diff-hard" data-diff="hard">💀 困难模式</button>
         </div>
         
         <div id="game-over-screen" class="screen">
@@ -40,6 +42,7 @@
             <p id="death-reason" style="color: #ff6b6b; font-weight: bold; margin-bottom: 20px;">死因: 未知</p>
             <p id="final-score">得分: 0</p>
             <p id="final-length">最大长度: 1</p>
+            <p id="final-difficulty" style="margin-bottom: 20px; color: #ffd32a;">难度: 中等模式</p>
             <button id="restart-btn">重新开始</button>
         </div>
         
