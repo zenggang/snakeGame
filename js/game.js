@@ -10,6 +10,7 @@ const config = {
 // 实例
 let player;
 let propsManager;
+let mapManager;
 let camera = { x: 0, y: 0 };
 let lastTime = 0;
 let gameState = 'menu'; // 'menu', 'playing', 'gameover'
@@ -34,23 +35,31 @@ function startGame() {
     gameOverScreen.classList.remove('active');
     
     // 初始化或重置游戏对象
-    player = new Player(0, 0);
+    mapManager = new MapManager(8000, 6000);
+    player = new Player(4000, 3000); // 居中放置
     propsManager = new PropsManager();
     lastTime = performance.now();
     
-    // 尝试获取手机端重力感应权限（如果需要点击才能触发的话，必须在这里执行）
-    Input.requestGravityPermission();
+    // 不再自动请求重力权限，改为用户手动切换
+    // Input.requestGravityPermission();
     
     if (!animationId) {
+        lastTime = performance.now();
         animationId = requestAnimationFrame(gameLoop);
     }
 }
 
-window.onGameOver = function() {
+window.onGameOver = function(reason = "未知原因") {
     gameState = 'gameover';
+    document.getElementById('death-reason').innerText = `死因: ${reason}`;
     finalScoreEl.innerText = `得分: ${player.score}`;
     finalLengthEl.innerText = `最大长度: ${player.segments}`;
     gameOverScreen.classList.add('active');
+    // 停止动画循环
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
 };
 
 function init() {
@@ -64,8 +73,7 @@ function init() {
     
     // 加载全部美术素材然后显示首页背景
     assets.load({
-        'character': 'assets/character.png?v=' + Date.now(), // 增加时间戳防止浏览器死缓存旧的原画
-        'props': 'assets/props.png',
+        'spritesheet': 'assets/SpriteSheet_transparent.png?v=' + Date.now(),
         'scene': 'assets/scene.png'
     }, () => {
         drawBackgroundOnly();
@@ -113,12 +121,34 @@ function drawHUD() {
     if (gameState !== 'playing') return;
     
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(10, 10, 150, 60);
+    ctx.fillRect(10, 10, 200, 84);
     
     ctx.fillStyle = '#fff';
     ctx.font = '16px sans-serif';
     ctx.fillText(`得分: ${player.score}`, 20, 32);
     ctx.fillText(`长度: ${player.segments}`, 20, 56);
+    
+    // 冲刺状态
+    if (player.boostActive) {
+        const secs = Math.ceil(player.boostTimer / 1000);
+        ctx.fillStyle = '#ffa500';
+        ctx.fillText(`🚀 冲刺中! ${secs}s`, 20, 80);
+    } else {
+        ctx.fillStyle = '#88d8f8';
+        ctx.fillText(`🚀 冲刺 x${player.boostCharges} (空格)`, 20, 80);
+    }
+    
+    // 同步更新移动端冲刺按钮文字
+    const boostBtn = document.getElementById('boost-btn');
+    if (boostBtn) {
+        if (player.boostActive) {
+            boostBtn.textContent = `🚀 ${Math.ceil(player.boostTimer / 1000)}s`;
+            boostBtn.classList.add('boosting');
+        } else {
+            boostBtn.textContent = `🚀 冲刺 (${player.boostCharges})`;
+            boostBtn.classList.remove('boosting');
+        }
+    }
 }
 
 function drawBackgroundOnly() {
@@ -128,7 +158,7 @@ function drawBackgroundOnly() {
     // 渲染无缝大背景铺砖
     if (assets.allLoaded) {
         let sceneImg = assets.getImage('scene');
-        if (sceneImg) {
+        if (sceneImg && sceneImg.width > 0 && sceneImg.height > 0) {
             let sw = sceneImg.width;
             let sh = sceneImg.height;
             // 确保背景铺砖能紧跟摄像机并呈现无限循环
@@ -149,9 +179,13 @@ function drawBackgroundOnly() {
 }
 
 function draw() {
+    // Fill fallback background
     drawBackgroundOnly();
     
     if (gameState === 'playing' || gameState === 'gameover') {
+        // 先渲染地形
+        if (mapManager) mapManager.draw(ctx, camera);
+        
         // 绘制游戏元素，传入摄像机进行坐标转换
         propsManager.draw(ctx, camera);
         if (player) player.draw(ctx, camera);

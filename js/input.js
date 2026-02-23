@@ -19,6 +19,34 @@ const Input = {
         x: 0,
         y: 0
     },
+    gravityEnabled: false, // 用户是否主动开启了重力模式
+
+    toggleGravity() {
+        const dpad = document.getElementById('dpad');
+        const toggleBtn = document.getElementById('gravity-toggle');
+        
+        if (this.gravityEnabled) {
+            // 关闭重力模式，回到按钮模式
+            this.gravityEnabled = false;
+            this.gravity.active = false;
+            this.gravity.x = 0;
+            this.gravity.y = 0;
+            if (dpad) dpad.style.display = 'flex';
+            if (toggleBtn) {
+                toggleBtn.textContent = '🔄 切换重力模式';
+                toggleBtn.classList.remove('active');
+            }
+        } else {
+            // 开启重力模式，隐藏按钮
+            this.gravityEnabled = true;
+            if (dpad) dpad.style.display = 'none';
+            if (toggleBtn) {
+                toggleBtn.textContent = '🎮 切换按钮模式';
+                toggleBtn.classList.add('active');
+            }
+            this.requestGravityPermission();
+        }
+    },
 
     requestGravityPermission() {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -37,6 +65,7 @@ const Input = {
 
     handleOrientation(event) {
         if (event.beta === null) return; // 设备不支持或无法获取
+        if (!this.gravityEnabled) return; // 用户未开启重力模式时忽略
         
         this.gravity.active = true;
         this.mouse.active = false;
@@ -79,6 +108,11 @@ const Input = {
                 this.keys[e.key] = true;
                 this.mouse.active = false;
             }
+            // 空格键触发冲刺
+            if (e.code === 'Space' && typeof player !== 'undefined') {
+                e.preventDefault();
+                player.activateBoost();
+            }
         });
 
         window.addEventListener('keyup', (e) => {
@@ -98,6 +132,55 @@ const Input = {
         window.addEventListener('mouseout', () => {
              this.mouse.active = false;
         });
+        
+        // 移动端虚拟方向键绑定
+        const dpadMap = {
+            'dpad-up': 'ArrowUp',
+            'dpad-down': 'ArrowDown',
+            'dpad-left': 'ArrowLeft',
+            'dpad-right': 'ArrowRight'
+        };
+        
+        Object.entries(dpadMap).forEach(([btnId, keyName]) => {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            
+            const press = (e) => {
+                e.preventDefault();
+                this.keys[keyName] = true;
+                this.mouse.active = false;
+                this.gravity.active = false;
+                btn.classList.add('pressed');
+            };
+            const release = (e) => {
+                e.preventDefault();
+                this.keys[keyName] = false;
+                btn.classList.remove('pressed');
+            };
+            
+            btn.addEventListener('touchstart', press, { passive: false });
+            btn.addEventListener('touchend', release, { passive: false });
+            btn.addEventListener('touchcancel', release, { passive: false });
+        });
+        
+        // 重力模式切换按钮
+        const gravityToggle = document.getElementById('gravity-toggle');
+        if (gravityToggle) {
+            gravityToggle.addEventListener('click', () => {
+                this.toggleGravity();
+            });
+        }
+        
+        // 冲刺按钮
+        const boostBtn = document.getElementById('boost-btn');
+        if (boostBtn) {
+            boostBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (typeof player !== 'undefined') {
+                    player.activateBoost();
+                }
+            });
+        }
     },
 
     getDirection(playerScreenX, playerScreenY) {

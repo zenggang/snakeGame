@@ -9,8 +9,14 @@ class Player {
         this.speed = 200; // 每秒移动像素
         this.direction = { x: 0, y: 0 }; // 运动方向
         
+        // 冲刺系统
+        this.boostCharges = 3;     // 默认 3 次冲刺
+        this.boostActive = false;
+        this.boostTimer = 0;       // 冲刺剩余时间(ms)
+        this.boostDuration = 5000; // 冲刺持续 5 秒
+        
         // 身体机制
-        this.segments = 1; // 初始 1 个身体节
+        this.segments = 3; // 初始 3 个身体节，给新手缓冲
         this.score = 0; // 积分
         this.pathHistory = [];
         this.recordDistance = 2; // 历史记录点的间隔像素
@@ -21,21 +27,67 @@ class Player {
         this.pathHistory.push({x: this.x, y: this.y});
     }
 
+    activateBoost() {
+        if (this.boostCharges > 0 && !this.boostActive) {
+            this.boostCharges--;
+            this.boostActive = true;
+            this.boostTimer = this.boostDuration;
+        }
+    }
+
     update(dt) {
+        // 冲刺计时器
+        if (this.boostActive) {
+            this.boostTimer -= dt;
+            if (this.boostTimer <= 0) {
+                this.boostActive = false;
+                this.boostTimer = 0;
+            }
+        }
+
         // 从输入获取当前朝向（针对屏幕中心，因为摄像机一直对准头部）
         // 获取 Canvas 尺寸，默认主角在屏幕中心
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
         
+        const currentSpeed = this.boostActive ? this.speed * 2 : this.speed;
+        
         const dir = Input.getDirection(centerX, centerY);
         if (dir) {
             this.direction = dir;
             // 依据方向和 dt 进行位移计算
-            const stepX = this.direction.x * this.speed * (dt / 1000);
-            const stepY = this.direction.y * this.speed * (dt / 1000);
+            const stepX = this.direction.x * currentSpeed * (dt / 1000);
+            const stepY = this.direction.y * currentSpeed * (dt / 1000);
             
-            this.x += stepX;
-            this.y += stepY;
+            const nextX = this.x + stepX;
+            const nextY = this.y + stepY;
+
+            // 地形检查 (致命障碍物、普通阻挡墙壁、落水)
+            if (typeof mapManager !== 'undefined') {
+                if (mapManager.isLethal(nextX, nextY, this.radius)) {
+                    if (typeof window.onGameOver === 'function') {
+                        window.onGameOver("撞碎在了坚硬的岩石或世界尽头的墙上！");
+                    }
+                    return;
+                }
+                
+                if (mapManager.isWall(nextX, nextY, this.radius)) {
+                    // 非致命的墙壁（蘑菇房、树等），阻拦玩家继续移动
+                    return;
+                }
+                // 碰水反弹推回，不直接死亡
+                if (mapManager.isWater(nextX, nextY, this.radius)) {
+                    // 反向推回
+                    this.x -= stepX * 2;
+                    this.y -= stepY * 2;
+                    // 扣一些分数作为惩罚
+                    this.score = Math.max(0, this.score - 20);
+                    return;
+                }
+            }
+            
+            this.x = nextX;
+            this.y = nextY;
             
             // 记录 Path History
             if (this.pathHistory.length > 0) {
@@ -73,7 +125,7 @@ class Player {
                 // 距离过近代表咬到了（考虑一点容错值）
                 if (distToBody < this.radius) {
                     if (typeof window.onGameOver === 'function') {
-                        window.onGameOver();
+                        window.onGameOver("不小心咬到了自己的身体！");
                     }
                     return; // 一死直接中断移动
                 }
@@ -82,12 +134,13 @@ class Player {
     }
 
     draw(ctx, camera) {
-        if (!assets.allLoaded) return; // 图片没加载完不画
+        if (!assets.allLoaded) return; 
 
-        const charImg = assets.getImage('character');
+        const charImg = assets.getImage('spritesheet');
         const sData = assets.slices.character;
 
-        // 1. 先绘制身体（从最后一个节往前画）
+        // 1. 先绘制身体（从最后一个节往前画，只在路径够长时才画）
+        const minHistoryForBody = 2 * this.historySpacing;
         for (let i = this.segments; i >= 1; i--) {
             let index = i * this.historySpacing;
             if (index >= this.pathHistory.length) {
@@ -95,14 +148,13 @@ class Player {
             }
             
             const point = this.pathHistory[index];
-            if (point) {
+            if (point && this.pathHistory.length >= minHistoryForBody) {
                 const screenX = point.x - camera.x;
                 const screenY = point.y - camera.y;
                 
-                // 计算当前节点真正朝向头部的切线角度
                 let angle = 0;
                 if (index - 1 >= 0) {
-                    const nextP = this.pathHistory[index - 1]; // 朝向头部的最近点
+                    const nextP = this.pathHistory[index - 1]; 
                     angle = Math.atan2(nextP.y - point.y, nextP.x - point.x);
                 } else if (index + 1 < this.pathHistory.length) {
                     const prevP = this.pathHistory[index + 1];
@@ -112,13 +164,11 @@ class Player {
                 ctx.save();
                 ctx.translate(screenX, screenY);
                 ctx.rotate(angle);
-                // 当朝左移动时，垂直翻转让肉卷的肚皮也能始终保持在下方
                 if (Math.abs(angle) > Math.PI / 2) {
                     ctx.scale(1, -1);
                 }
                 
-                // 绘制躯干切图
-                if (charImg) {
+                if (charImg && sData.body) {
                     ctx.drawImage(charImg, 
                         sData.body.sx, sData.body.sy, sData.body.sw, sData.body.sh,
                         -sData.body.displayW/2, -sData.body.displayH/2, 
@@ -129,34 +179,34 @@ class Player {
             }
         }
 
-        // 2. 绘制尾巴（挂在最后一节后面）
-        if (this.segments >= 1) {
+        // 2. 绘制尾巴（路径足够长时才画）
+        if (this.segments >= 1 && this.pathHistory.length >= minHistoryForBody) {
             let lastIndex = this.segments * this.historySpacing;
             if (lastIndex >= this.pathHistory.length) lastIndex = Math.max(0, this.pathHistory.length - 1);
             const tailP = this.pathHistory[lastIndex];
             if (tailP) {
                 let tailAngle = 0;
                 if (lastIndex - 1 >= 0) {
-                    const nextP = this.pathHistory[lastIndex - 1]; // 朝向头部的最近点
+                    const nextP = this.pathHistory[lastIndex - 1]; 
                     tailAngle = Math.atan2(nextP.y - tailP.y, nextP.x - tailP.x);
                 } else if (lastIndex + 1 < this.pathHistory.length) {
                     const prevP = this.pathHistory[lastIndex + 1];
                     tailAngle = Math.atan2(tailP.y - prevP.y, tailP.x - prevP.x);
                 }
                 
-                // 尾巴衔接处往后退一点避免吃进身子里
                 const tailX = tailP.x - camera.x - Math.cos(tailAngle) * 15;
                 const tailY = tailP.y - camera.y - Math.sin(tailAngle) * 15;
                 
                 ctx.save();
                 ctx.translate(tailX, tailY);
                 ctx.rotate(tailAngle);
-                // 同样适配向左边走时的防倒置翻转
+                
+                // Tail piece we picked (sx:2229) is drawn horizontally.
                 if (Math.abs(tailAngle) > Math.PI / 2) {
                     ctx.scale(1, -1);
                 }
                 
-                if (charImg) {
+                if (charImg && sData.butt) {
                     ctx.drawImage(charImg,
                         sData.butt.sx, sData.butt.sy, sData.butt.sw, sData.butt.sh,
                         -sData.butt.displayW/2, -sData.butt.displayH/2,
@@ -173,7 +223,6 @@ class Player {
         
         // 头部的朝向
         let headAngle = Math.atan2(this.direction.y, this.direction.x);
-        // 如果没有移动，就跟随最后一个有朝向的过程
         if(this.direction.x === 0 && this.direction.y === 0 && this.pathHistory.length > 5) {
              headAngle = Math.atan2(this.y - this.pathHistory[5].y, this.x - this.pathHistory[5].x);
         }
@@ -181,19 +230,24 @@ class Player {
         ctx.save();
         ctx.translate(headScreenX, headScreenY);
         
-        // 当朝左移动时，垂直翻转让人物始终保持正脸而不会倒置
-        if (Math.abs(headAngle) > Math.PI / 2) {
-            ctx.scale(1, -1);
+        let headSlice = sData.head_right;
+        
+        // Determing which head slice to use based on angle
+        if (headAngle >= -Math.PI / 4 && headAngle <= Math.PI / 4) {
+             headSlice = sData.head_right;
+        } else if (headAngle > Math.PI / 4 && headAngle < 3 * Math.PI / 4) {
+             headSlice = sData.head_down;
+        } else if (headAngle >= 3 * Math.PI / 4 || headAngle <= -3 * Math.PI / 4) {
+             headSlice = sData.head_left;
+        } else {
+             headSlice = sData.head_up;
         }
         
-        ctx.rotate(headAngle);
-        
-        // 渲染头部贴图
-        if (charImg) {
+        if (charImg && headSlice) {
             ctx.drawImage(charImg,
-                sData.head.sx, sData.head.sy, sData.head.sw, sData.head.sh,
-                -sData.head.displayW/2, -sData.head.displayH/2,
-                sData.head.displayW, sData.head.displayH
+                headSlice.sx, headSlice.sy, headSlice.sw, headSlice.sh,
+                -headSlice.displayW/2, -headSlice.displayH/2,
+                headSlice.displayW, headSlice.displayH
             );
         }
         ctx.restore();

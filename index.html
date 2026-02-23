@@ -15,21 +15,42 @@
         <div id="start-screen" class="screen active">
             <h1>皮皮狗贪吃蛇</h1>
             <p>使用鼠标、WASD 或 <b>手机重力倾斜</b> 控制方向</p>
-            <p>吃彩色道具变长，避开紫色陷阱！</p>
+            <div class="rules">
+                <p><b>玩法规则：</b></p>
+                <p>🦴 骨头 (小+1/中+2/大+5节) &nbsp; 🍬 糖果 (+5节) &nbsp; 🍞 面包 (+8节)</p>
+                <p>🟢 绿虫 (长度减半) &nbsp; 💩 大便 (掉5节且静止陷阱)</p>
+                <p>🔴 红虫、🪨 石头、🚧 边界栏杆 (碰到即死!)</p>
+                <p>🪵 树木、🍄 房屋、🌺 花坛 (阻挡路线，需绕行)</p>
+            </div>
             <button id="start-btn">开始游戏</button>
         </div>
         
         <div id="game-over-screen" class="screen">
             <h1>Game Over</h1>
+            <p id="death-reason" style="color: #ff6b6b; font-weight: bold; margin-bottom: 20px;">死因: 未知</p>
             <p id="final-score">得分: 0</p>
             <p id="final-length">最大长度: 1</p>
             <button id="restart-btn">重新开始</button>
         </div>
+        
+        <!-- 移动端虚拟方向键 -->
+        <div id="dpad">
+            <button class="dpad-btn" id="dpad-up">▲</button>
+            <div class="dpad-mid">
+                <button class="dpad-btn" id="dpad-left">◀</button>
+                <div class="dpad-center"></div>
+                <button class="dpad-btn" id="dpad-right">▶</button>
+            </div>
+            <button class="dpad-btn" id="dpad-down">▼</button>
+        </div>
+        <button id="gravity-toggle">🔄 切换重力模式</button>
+        <button id="boost-btn">🚀 冲刺 (3)</button>
     </div>
 
     <!-- 顺序引入脚本 -->
     <script src="js/assets.js"></script>
     <script src="js/input.js"></script>
+    <script src="js/map.js"></script>
     <script src="js/player.js"></script>
     <script src="js/props.js"></script>
     <script src="js/game.js"></script>
