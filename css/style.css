@@ -98,7 +98,7 @@ canvas {
 
 /* ===== 移动端控制 ===== */
 
-/* 虚拟摇杆 */
+/* 虚拟摇杆（浮动式：按下任意位置出现） */
 #joystick {
     display: none;
     position: fixed;
@@ -113,6 +113,9 @@ canvas {
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none;
 }
 
 #joystick-knob {
@@ -195,6 +198,36 @@ body.touch-device #joystick {
 body.touch-device #boost-btn {
     display: block;
 }
+body.touch-device #shield-btn {
+    display: block;
+}
 body.touch-device #gravity-toggle {
     display: block;
+}
+
+/* 护盾按钮 */
+#shield-btn {
+    display: none;
+    position: fixed;
+    bottom: 190px;
+    right: 16px;
+    z-index: 999;
+    padding: 14px 20px;
+    font-size: 18px;
+    background: rgba(255, 215, 0, 0.3);
+    border: 2px solid rgba(255, 215, 0, 0.6);
+    border-radius: 14px;
+    color: white;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+
+#shield-btn.shielding {
+    background: rgba(255, 215, 0, 0.6);
+    border-color: rgba(255, 215, 0, 0.9);
+    animation: pulse 0.5s ease-in-out infinite alternate;
 }

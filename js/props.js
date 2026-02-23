@@ -117,8 +117,8 @@ class PropsManager {
                 } else {
                     textureKey = 'bone_l'; points = 100; growth = 5; radius = 35;
                 }
-            } else if (roll < 0.8) {
-                // 30% 是糖果
+            } else if (roll < 0.65) {
+                // 15% 是糖果（减少生成率）
                 textureKey = 'candy'; points = 50; growth = 5; radius = 25;
             } else {
                 // 20% 是面包
@@ -169,21 +169,42 @@ class PropsManager {
                 // 面包：额外冲刺次数 +1
                 player.boostCharges++;
             }
+            if (prop.textureKey === 'candy') {
+                // 糖果：额外护盾次数 +1
+                player.shieldCharges++;
+            }
             this.playSound('buff');
         } else if (prop.type === 'debuff') {
+            // 护盾激活时免疫所有负面效果
+            if (player.shieldActive) {
+                this.playSound('debuff');
+                return; // 护盾挡住了！
+            }
+            
             player.score = Math.max(0, player.score + prop.points);
             
             if (prop.textureKey === 'bug_green') {
-                // 绿虫子：长度直接减半，但至少保留一节
-                player.segments = Math.max(1, Math.floor(player.segments / 2));
+                // 绿虫子：长度减半；如果已经只有 1 节则直接死亡
+                if (player.segments <= 1) {
+                    if (typeof window.onGameOver === 'function') {
+                        window.onGameOver("被绿瓢虫啃到只剩骨头了！");
+                    }
+                } else {
+                    player.segments = Math.max(1, Math.floor(player.segments / 2));
+                }
             } else if (prop.textureKey === 'bug_red') {
                 // 红虫子：碰上直接死亡
                 if (typeof window.onGameOver === 'function') {
                     window.onGameOver("吃下了极其剧毒的红瓢虫！");
                 }
             } else if (prop.textureKey === 'poop') {
-                // 大便：减 5 节
-                player.segments = Math.max(1, player.segments - 5);
+                // 大便：减 5 节，减到 0 以下则死亡
+                player.segments -= 5;
+                if (player.segments <= 0) {
+                    if (typeof window.onGameOver === 'function') {
+                        window.onGameOver("踩了太多大便，被臭死了！");
+                    }
+                }
             }
             this.playSound('debuff');
         }

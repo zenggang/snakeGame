@@ -116,18 +116,57 @@ class MapManager {
         }
     }
 
-    // Collision detection
+    // 各种装饰物的实际碰撞半径（精灵都远小于 150px 的瓦片格）
+    _getDecorCollisionRadius(key) {
+        if (key.includes('mushroom')) return 35;  // 蘑菇房较大
+        if (key.includes('tree'))     return 30;  // 树
+        if (key.includes('stump'))    return 20;  // 树桩较小
+        if (key.includes('rock'))     return 25;  // 石头
+        if (key.includes('flower_bed')) return 30; // 花坛
+        return 0; // 非碰撞装饰
+    }
+    
+    // 通用装饰物像素级碰撞检测（返回碰撞到的 key 或 null）
+    _checkDecorHit(x, y, radius, filterFn) {
+        const scanRange = Math.max(1, Math.ceil((radius + 40) / this.tileSize));
+        const centerTX = Math.floor(x / this.tileSize);
+        const centerTY = Math.floor(y / this.tileSize);
+        
+        for (let cx = centerTX - scanRange; cx <= centerTX + scanRange; cx++) {
+            for (let cy = centerTY - scanRange; cy <= centerTY + scanRange; cy++) {
+                if (cx < 0 || cx >= this.cols || cy < 0 || cy >= this.rows) continue;
+                const tile = this.tiles[cx][cy];
+                if (!tile || !tile.startsWith('decor_')) continue;
+                
+                const key = tile.replace('decor_', '');
+                const decorRadius = this._getDecorCollisionRadius(key);
+                if (decorRadius <= 0) continue;  // 没有碰撞体积的装饰（小花小草等）
+                if (filterFn && !filterFn(key)) continue;  // 不符合过滤条件
+                
+                // 装饰物视觉中心 = 瓦片正中央
+                const objCX = cx * this.tileSize + this.tileSize / 2;
+                const objCY = cy * this.tileSize + this.tileSize / 2;
+                const dist = Math.hypot(x - objCX, y - objCY);
+                
+                if (dist < decorRadius + radius) {
+                    return key;
+                }
+            }
+        }
+        return null;
+    }
+
+    // 致命碰撞检测（边界墙 + 岩石）
     isLethal(x, y, radius = 0) {
         if (x < radius || x >= this.width - radius || y < radius || y >= this.height - radius) return true;
         
-        // Check 4 corners of the bounding box to be safer
+        // 边界围栏检测（仍然用瓦片级，因为围栏确实填满整格）
         const corners = [
             {cx: x - radius, cy: y - radius},
             {cx: x + radius, cy: y - radius},
             {cx: x - radius, cy: y + radius},
             {cx: x + radius, cy: y + radius}
         ];
-        
         for (let p of corners) {
             const tx = Math.floor(p.cx / this.tileSize);
             const ty = Math.floor(p.cy / this.tileSize);
@@ -137,57 +176,33 @@ class MapManager {
             }
         }
         
-        // 岩石使用像素级距离碰撞检测（石头很小，不应占满整格 150px）
-        for (let cx = Math.floor((x - radius) / this.tileSize); cx <= Math.floor((x + radius) / this.tileSize); cx++) {
-            for (let cy = Math.floor((y - radius) / this.tileSize); cy <= Math.floor((y + radius) / this.tileSize); cy++) {
-                if (cx >= 0 && cx < this.cols && cy >= 0 && cy < this.rows) {
-                    const tile = this.tiles[cx][cy];
-                    if (tile && tile.startsWith('decor_') && tile.replace('decor_', '').includes('rock')) {
-                        // 石头视觉中心在瓦片的正中央
-                        const rockCenterX = cx * this.tileSize + this.tileSize / 2;
-                        const rockCenterY = cy * this.tileSize + this.tileSize / 2;
-                        const dist = Math.hypot(x - rockCenterX, y - rockCenterY);
-                        // 碰撞半径 = 石头显示尺寸的一半（约 25px）+ 蛇头半径
-                        if (dist < 25 + radius) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        return false;
+        // 岩石：像素级距离检测
+        const hitKey = this._checkDecorHit(x, y, radius, (key) => key.includes('rock'));
+        return hitKey !== null;
     }
 
+    // 阻挡物碰撞检测（边界 + 蘑菇房/树/树桩/花坛/岩石全部像素级）
     isWall(x, y, radius = 0) {
         if (x < radius || x >= this.width - radius || y < radius || y >= this.height - radius) return true;
         
-        // Check 4 corners of the bounding box to be safer
         const corners = [
             {cx: x - radius, cy: y - radius},
             {cx: x + radius, cy: y - radius},
             {cx: x - radius, cy: y + radius},
             {cx: x + radius, cy: y + radius}
         ];
-        
         for (let p of corners) {
             const tx = Math.floor(p.cx / this.tileSize);
             const ty = Math.floor(p.cy / this.tileSize);
             if (tx >= 0 && tx < this.cols && ty >= 0 && ty < this.rows) {
                 const tile = this.tiles[tx][ty];
                 if (tile === 'wall_h' || tile === 'wall_v') return true;
-                if (tile && tile.startsWith('decor_')) {
-                    const key = tile.replace('decor_', '');
-                    if (key.includes('mushroom') || 
-                        key.includes('stump') || 
-                        key.includes('rock') || 
-                        key.includes('flower_bed') || 
-                        key.includes('tree')) {
-                        return true;
-                    }
-                }
             }
         }
-        return false;
+        
+        // 所有实体装饰物：像素级距离检测
+        const hitKey = this._checkDecorHit(x, y, radius);
+        return hitKey !== null;
     }
 
     isWater(x, y, radius = 0) {

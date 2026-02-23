@@ -121,7 +121,7 @@ function drawHUD() {
     if (gameState !== 'playing') return;
     
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(10, 10, 200, 84);
+    ctx.fillRect(10, 10, 220, 108);
     
     ctx.fillStyle = '#fff';
     ctx.font = '16px sans-serif';
@@ -135,10 +135,20 @@ function drawHUD() {
         ctx.fillText(`🚀 冲刺中! ${secs}s`, 20, 80);
     } else {
         ctx.fillStyle = '#88d8f8';
-        ctx.fillText(`🚀 冲刺 x${player.boostCharges} (空格)`, 20, 80);
+        ctx.fillText(`🚀 x${player.boostCharges} (空格)`, 20, 80);
     }
     
-    // 同步更新移动端冲刺按钮文字
+    // 护盾状态
+    if (player.shieldActive) {
+        const secs = Math.ceil(player.shieldTimer / 1000);
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText(`🛡️ 无敌中! ${secs}s`, 20, 104);
+    } else {
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText(`🛡️ x${player.shieldCharges} (E键)`, 20, 104);
+    }
+    
+    // 同步更新移动端冲刺按钮
     const boostBtn = document.getElementById('boost-btn');
     if (boostBtn) {
         if (player.boostActive) {
@@ -147,6 +157,18 @@ function drawHUD() {
         } else {
             boostBtn.textContent = `🚀 冲刺 (${player.boostCharges})`;
             boostBtn.classList.remove('boosting');
+        }
+    }
+    
+    // 同步更新移动端护盾按钮
+    const shieldBtn = document.getElementById('shield-btn');
+    if (shieldBtn) {
+        if (player.shieldActive) {
+            shieldBtn.textContent = `🛡️ ${Math.ceil(player.shieldTimer / 1000)}s`;
+            shieldBtn.classList.add('shielding');
+        } else {
+            shieldBtn.textContent = `🛡️ 护盾 (${player.shieldCharges})`;
+            shieldBtn.classList.remove('shielding');
         }
     }
 }

@@ -126,6 +126,11 @@ const Input = {
                 e.preventDefault();
                 player.activateBoost();
             }
+            // E 键触发护盾
+            if (e.code === 'KeyE' && typeof player !== 'undefined') {
+                e.preventDefault();
+                player.activateShield();
+            }
         });
 
         window.addEventListener('keyup', (e) => {
@@ -146,52 +151,84 @@ const Input = {
              this.mouse.active = false;
         });
         
-        // 虚拟摇杆触摸事件
+        // 浮动虚拟摇杆：在屏幕任意非按钮区域按下即出现
         const joystickEl = document.getElementById('joystick');
         const knobEl = document.getElementById('joystick-knob');
         
         if (joystickEl && knobEl) {
-            const maxDrag = 40; // 摇杆最大拖动距离(px)
+            const maxDrag = 40;
+            let touchId = null;       // 跟踪的触摸点 ID
+            let originX = 0;          // 按下时的触摸中心
+            let originY = 0;
             
-            const handleTouch = (e) => {
-                e.preventDefault();
-                const rect = joystickEl.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
-                const touch = e.touches[0];
-                let dx = touch.clientX - centerX;
-                let dy = touch.clientY - centerY;
-                
-                // 限制在最大半径内
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > maxDrag) {
-                    dx = (dx / dist) * maxDrag;
-                    dy = (dy / dist) * maxDrag;
-                }
-                
-                // 移动摇杆旋钮
-                knobEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-                
-                // 设置方向输入（归一化到 -1~1）
-                this.joystick.active = true;
-                this.joystick.dx = dx / maxDrag;
-                this.joystick.dy = dy / maxDrag;
-                this.mouse.active = false;
-                this.gravity.active = false;
+            // 判断触摸点是否在按钮区域
+            const isOnButton = (touch) => {
+                const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (!el) return false;
+                return el.closest('#boost-btn, #shield-btn, #gravity-toggle, .screen button');
             };
             
-            const handleEnd = (e) => {
+            const onTouchStart = (e) => {
+                if (touchId !== null) return; // 已经有一个摇杆触摸在跟踪
+                const touch = e.changedTouches[0];
+                if (isOnButton(touch)) return; // 按钮区域不触发摇杆
+                
                 e.preventDefault();
+                touchId = touch.identifier;
+                originX = touch.clientX;
+                originY = touch.clientY;
+                
+                // 将摇杆移到触摸位置
+                joystickEl.style.left = (originX - 65) + 'px';
+                joystickEl.style.top = (originY - 65) + 'px';
+                joystickEl.style.bottom = 'auto';
+                joystickEl.style.opacity = '1';
+                
                 knobEl.style.transform = 'translate(-50%, -50%)';
                 this.joystick.active = false;
-                this.joystick.dx = 0;
-                this.joystick.dy = 0;
             };
             
-            joystickEl.addEventListener('touchstart', handleTouch, { passive: false });
-            joystickEl.addEventListener('touchmove', handleTouch, { passive: false });
-            joystickEl.addEventListener('touchend', handleEnd, { passive: false });
-            joystickEl.addEventListener('touchcancel', handleEnd, { passive: false });
+            const onTouchMove = (e) => {
+                if (touchId === null) return;
+                for (const touch of e.changedTouches) {
+                    if (touch.identifier !== touchId) continue;
+                    e.preventDefault();
+                    
+                    let dx = touch.clientX - originX;
+                    let dy = touch.clientY - originY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > maxDrag) {
+                        dx = (dx / dist) * maxDrag;
+                        dy = (dy / dist) * maxDrag;
+                    }
+                    
+                    knobEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+                    this.joystick.active = true;
+                    this.joystick.dx = dx / maxDrag;
+                    this.joystick.dy = dy / maxDrag;
+                    this.mouse.active = false;
+                    this.gravity.active = false;
+                }
+            };
+            
+            const onTouchEnd = (e) => {
+                for (const touch of e.changedTouches) {
+                    if (touch.identifier !== touchId) continue;
+                    e.preventDefault();
+                    touchId = null;
+                    
+                    joystickEl.style.opacity = '0';
+                    knobEl.style.transform = 'translate(-50%, -50%)';
+                    this.joystick.active = false;
+                    this.joystick.dx = 0;
+                    this.joystick.dy = 0;
+                }
+            };
+            
+            document.addEventListener('touchstart', onTouchStart, { passive: false });
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+            document.addEventListener('touchend', onTouchEnd, { passive: false });
+            document.addEventListener('touchcancel', onTouchEnd, { passive: false });
         }
         
         // 重力模式切换按钮
@@ -209,6 +246,17 @@ const Input = {
                 e.preventDefault();
                 if (typeof player !== 'undefined') {
                     player.activateBoost();
+                }
+            });
+        }
+        
+        // 护盾按钮
+        const shieldBtn = document.getElementById('shield-btn');
+        if (shieldBtn) {
+            shieldBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (typeof player !== 'undefined') {
+                    player.activateShield();
                 }
             });
         }

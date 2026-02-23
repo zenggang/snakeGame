@@ -15,6 +15,12 @@ class Player {
         this.boostTimer = 0;       // 冲刺剩余时间(ms)
         this.boostDuration = 5000; // 冲刺持续 5 秒
         
+        // 护盾系统
+        this.shieldCharges = 2;     // 默认 2 次护盾
+        this.shieldActive = false;
+        this.shieldTimer = 0;
+        this.shieldDuration = 5000; // 护盾持续 5 秒
+        
         // 身体机制
         this.segments = 3; // 初始 3 个身体节，给新手缓冲
         this.score = 0; // 积分
@@ -34,6 +40,14 @@ class Player {
             this.boostTimer = this.boostDuration;
         }
     }
+    
+    activateShield() {
+        if (this.shieldCharges > 0 && !this.shieldActive) {
+            this.shieldCharges--;
+            this.shieldActive = true;
+            this.shieldTimer = this.shieldDuration;
+        }
+    }
 
     update(dt) {
         // 冲刺计时器
@@ -42,6 +56,15 @@ class Player {
             if (this.boostTimer <= 0) {
                 this.boostActive = false;
                 this.boostTimer = 0;
+            }
+        }
+        
+        // 护盾计时器
+        if (this.shieldActive) {
+            this.shieldTimer -= dt;
+            if (this.shieldTimer <= 0) {
+                this.shieldActive = false;
+                this.shieldTimer = 0;
             }
         }
 
@@ -250,6 +273,24 @@ class Player {
                 headSlice.displayW, headSlice.displayH
             );
         }
+        
+        // 护盾发光光环特效
+        if (this.shieldActive) {
+            const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 200);
+            const glowRadius = this.radius + 15 + pulse * 8;
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255, 215, 0, ${0.5 + pulse * 0.3})`;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, glowRadius - 2, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 100, ${0.1 + pulse * 0.1})`;
+            ctx.fill();
+        }
+        
         ctx.restore();
     }
 }
