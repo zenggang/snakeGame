@@ -4,11 +4,21 @@ class PropsManager {
         const diff = window.difficulty || { maxProps: 80 };
         this.maxProps = diff.maxProps || 80;
         this.spawnRadius = 1500; // 生成范围
+        this.spawnQueue = []; // 延迟刷新队列 [{delay, elapsed}]
     }
 
     update(player, dt) {
-        // 补充道具
-        while (this.props.length < this.maxProps) {
+        // 处理延迟刷新队列
+        for (let i = this.spawnQueue.length - 1; i >= 0; i--) {
+            this.spawnQueue[i].elapsed += dt;
+            if (this.spawnQueue[i].elapsed >= this.spawnQueue[i].delay) {
+                this.spawnProp(player);
+                this.spawnQueue.splice(i, 1);
+            }
+        }
+        
+        // 初始填充（游戏开始时）
+        while (this.props.length + this.spawnQueue.length < this.maxProps) {
             this.spawnProp(player);
         }
 
@@ -83,10 +93,14 @@ class PropsManager {
             if (dist < player.radius + prop.radius) {
                 this.consumeProp(player, prop);
                 this.props.splice(i, 1);
+                // 延迟 1~3 秒后在别处刷新
+                this.spawnQueue.push({ delay: 1000 + Math.random() * 2000, elapsed: 0 });
             } 
             // 越界回收
             else if (dist > 1500) {
                 this.props.splice(i, 1);
+                // 越界的快速回收，0.5~1 秒后刷新
+                this.spawnQueue.push({ delay: 500 + Math.random() * 500, elapsed: 0 });
             }
         }
     }

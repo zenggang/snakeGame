@@ -32,7 +32,7 @@ function resizeCanvas() {
 const DIFFICULTY = {
     easy:   { buffChance: 0.45, maxProps: 100, chaseSpeed: 60,  bugSpeedMul: 0.5, label: '简易' },
     medium: { buffChance: 0.25, maxProps: 80,  chaseSpeed: 120, bugSpeedMul: 1.0, label: '中等' },
-    hard:   { buffChance: 0.15, maxProps: 60,  chaseSpeed: 180, bugSpeedMul: 2.0, label: '困难' }
+    hard:   { buffChance: 0.22, maxProps: 60,  chaseSpeed: 180, bugSpeedMul: 2.0, label: '困难' }
 };
 
 function startGame(diff = 'medium') {
@@ -251,7 +251,105 @@ function draw() {
         propsManager.draw(ctx, camera);
         if (player) player.draw(ctx, camera);
         drawHUD();
+        drawMinimap();
     }
+}
+
+function drawMinimap() {
+    if (gameState !== 'playing' || !mapManager) return;
+    
+    const mapW = mapManager.width;
+    const mapH = mapManager.height;
+    const mmW = 160;
+    const mmH = Math.round(mmW * mapH / mapW);
+    const mmX = canvas.width - mmW - 12;
+    const mmY = 12;
+    const scaleX = mmW / mapW;
+    const scaleY = mmH / mapH;
+    
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    
+    // 背景（草地）
+    ctx.fillStyle = '#4a8c3f';
+    ctx.fillRect(mmX, mmY, mmW, mmH);
+    
+    // 渲染地形瓦片
+    const ts = mapManager.tileSize;
+    const tileW = ts * scaleX;
+    const tileH = ts * scaleY;
+    
+    for (let tx = 0; tx < mapManager.cols; tx++) {
+        for (let ty = 0; ty < mapManager.rows; ty++) {
+            const tile = mapManager.tiles[tx] && mapManager.tiles[tx][ty];
+            if (!tile) continue;
+            
+            let color = null;
+            if (tile === 'water') color = '#3a8fd8';
+            else if (tile === 'wall_h' || tile === 'wall_v') color = '#8B7355';
+            else if (tile === 'dirt') color = '#c4a66a';
+            else if (tile === 'bridge_v' || tile === 'bridge_h') color = '#a0826d';
+            
+            if (color) {
+                ctx.fillStyle = color;
+                ctx.fillRect(mmX + tx * tileW, mmY + ty * tileH, Math.ceil(tileW), Math.ceil(tileH));
+            }
+        }
+    }
+    
+    ctx.globalAlpha = 0.85;
+    
+    // 道具（小点）
+    if (propsManager && propsManager.props) {
+        for (const p of propsManager.props) {
+            const px = mmX + p.x * scaleX;
+            const py = mmY + p.y * scaleY;
+            if (p.type === 'buff') {
+                ctx.fillStyle = '#ffd700';
+            } else if (p.textureKey === 'bug_red') {
+                ctx.fillStyle = '#ff4444';
+            } else if (p.textureKey === 'bug_green') {
+                ctx.fillStyle = '#44ff44';
+            } else {
+                ctx.fillStyle = '#8B4513';
+            }
+            ctx.fillRect(px - 1, py - 1, 2, 2);
+        }
+    }
+    
+    // 玩家身体轨迹
+    if (player && player.pathHistory && player.pathHistory.length > 0) {
+        ctx.fillStyle = '#ffaa00';
+        const step = Math.max(1, Math.floor(player.pathHistory.length / 20));
+        for (let i = 0; i < player.pathHistory.length; i += step) {
+            const pt = player.pathHistory[i];
+            ctx.fillRect(mmX + pt.x * scaleX - 1, mmY + pt.y * scaleY - 1, 2, 2);
+        }
+    }
+    
+    // 玩家位置（亮白大点）
+    if (player) {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(mmX + player.x * scaleX, mmY + player.y * scaleY, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // 当前视口框
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(
+        mmX + Math.max(0, camera.x) * scaleX,
+        mmY + Math.max(0, camera.y) * scaleY,
+        canvas.width * scaleX,
+        canvas.height * scaleY
+    );
+    
+    // 边框
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.strokeRect(mmX, mmY, mmW, mmH);
+    
+    ctx.restore();
 }
 
 function gameLoop(timestamp) {
