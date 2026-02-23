@@ -73,7 +73,7 @@ window.onGameOver = function(reason = "未知原因") {
 
 function init() {
     window.isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    window.viewScale = window.isMobile ? 0.5 : 1.0;
+    window.viewScale = window.isMobile ? 0.75 : 1.0;
     
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();

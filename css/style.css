@@ -273,18 +273,13 @@ body.touch-device #gravity-toggle {
     .screen p { font-size: 14px; margin-bottom: 8px; }
     .rules { padding: 10px 15px; margin: 10px 0; }
     .rules p { font-size: 13px; margin-bottom: 5px; }
-    .diff-btn { width: 180px; padding: 10px 20px; font-size: 16px; margin: 5px auto !important; }
+    .diff-btn { width: auto; padding: 8px 18px; font-size: 14px; margin: 4px 5px !important; display: inline-block; }
     .screen button { padding: 10px 24px; font-size: 16px; margin-top: 5px; }
     /* 极短视口下改为顶部对齐可滚动 */
     .screen { justify-content: flex-start; padding: 10px 0; }
 }
 
-/* 竖屏下强制显示遮罩 */
-@media screen and (orientation: portrait) and (max-width: 900px) {
-    #landscape-hint {
-        display: flex;
-    }
-}
+/* 竖屏提示已移除，不再强制横屏 */
 
 /* 控制按钮在横版下的更紧凑排列（靠右边缘） */
 @media screen and (orientation: landscape) and (max-width: 900px) {
