@@ -32,6 +32,11 @@ class PropsManager {
                         let chaseAngle = Math.atan2(player.y - prop.y, player.x - prop.x);
                         const diff = window.difficulty || { chaseSpeed: 120 };
                         let chaseSpeed = diff.chaseSpeed || 120;
+                        // 难度递增：非简易模式下追踪速度随分数阶梯提升
+                        if (diff.label !== '简易') {
+                            const tier = Math.floor(player.score / 500);
+                            chaseSpeed = chaseSpeed + tier * 30;
+                        }
                         prop.vx = Math.cos(chaseAngle) * chaseSpeed;
                         prop.vy = Math.sin(chaseAngle) * chaseSpeed;
                         prop.chaseTimer = 2000; // 追 2 秒就放弃
@@ -101,8 +106,23 @@ class PropsManager {
         }
         
         // buff 概率受难度影响
-        const diff = window.difficulty || { buffChance: 0.25, bugSpeedMul: 1 };
-        let isBuff = Math.random() < (diff.buffChance || 0.25);
+        const diff = window.difficulty || { buffChance: 0.25, bugSpeedMul: 1, chaseSpeed: 120 };
+        
+        // 难度递增：中等和困难模式下，每500分提升一个阶梯
+        let tier = 0;
+        let scaledBuffChance = diff.buffChance || 0.25;
+        let scaledBugSpeedMul = diff.bugSpeedMul || 1;
+        let scaledChaseSpeed = diff.chaseSpeed || 120;
+        
+        if (diff.label !== '简易' && typeof player !== 'undefined') {
+            tier = Math.floor(player.score / 500);
+            // 每个阶梯：buff概率减少5%（最低10%），虫速+20%，追踪速+30
+            scaledBuffChance = Math.max(0.10, scaledBuffChance - tier * 0.05);
+            scaledBugSpeedMul = scaledBugSpeedMul + tier * 0.2;
+            scaledChaseSpeed = scaledChaseSpeed + tier * 30;
+        }
+        
+        let isBuff = Math.random() < scaledBuffChance;
         let textureKey = '';
         let points = 0;
         let growth = 0;
@@ -141,11 +161,10 @@ class PropsManager {
         // 便便和增益一样不移动
         let isImmobile = isBuff || textureKey === 'poop';
         
-        // 虫子速度倍率：基础倍率受难度影响
-        const baseMul = diff.bugSpeedMul || 1;
-        let speedMul = baseMul;
-        if (textureKey === 'bug_red') speedMul = baseMul * 2;
-        else if (textureKey === 'bug_green') speedMul = baseMul * 1.5;
+        // 虫子速度倍率：基础倍率受难度递增影响
+        let speedMul = scaledBugSpeedMul;
+        if (textureKey === 'bug_red') speedMul = scaledBugSpeedMul * 2;
+        else if (textureKey === 'bug_green') speedMul = scaledBugSpeedMul * 1.5;
         
         let prop = {
             x: px,

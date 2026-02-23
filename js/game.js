@@ -80,9 +80,12 @@ function init() {
     document.querySelectorAll('.diff-btn').forEach(btn => {
         btn.addEventListener('click', () => startGame(btn.dataset.diff));
     });
-    restartBtn.addEventListener('click', () => startGame(
-        (window.difficulty && Object.keys(DIFFICULTY).find(k => DIFFICULTY[k] === window.difficulty)) || 'medium'
-    ));
+    restartBtn.addEventListener('click', () => {
+        gameOverScreen.classList.remove('active');
+        startScreen.classList.add('active');
+        // 重新在背景画个图，避免黑屏
+        if (typeof drawBackgroundOnly === 'function') drawBackgroundOnly();
+    });
     
     // 加载全部美术素材，显示进度条
     const loadingBar = document.getElementById('loading-bar-fill');
@@ -90,7 +93,7 @@ function init() {
     const loadingScreen = document.getElementById('loading-screen');
     
     assets.load({
-        'spritesheet': 'assets/SpriteSheet_half.png?v=' + Date.now(),
+        'spritesheet': 'assets/SpriteSheet_half.webp?v=' + Date.now(),
         'scene': 'assets/scene.png'
     }, () => {
         // 加载完毕：隐藏加载画面，显示开始界面
@@ -173,10 +176,15 @@ function drawHUD() {
         ctx.fillText(`🛡️ x${player.shieldCharges} (E键)`, 20, 104);
     }
     
-    // 显示当前难度
+    // 显示当前难度 + 阶梯
     if (window.difficulty) {
         ctx.fillStyle = '#ff9f43';
-        ctx.fillText(`难度: ${window.difficulty.label}`, 20, 128);
+        let diffText = `难度: ${window.difficulty.label}`;
+        if (window.difficulty.label !== '简易') {
+            const tier = Math.floor(player.score / 500);
+            if (tier > 0) diffText += ` ⬆${tier}`;
+        }
+        ctx.fillText(diffText, 20, 128);
     }
     
     // 同步更新移动端冲刺按钮
