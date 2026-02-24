@@ -107,11 +107,11 @@ const Input = {
     },
 
     handleOrientation(event) {
-        if (event.beta === null) return; // 设备不支持或无法获取
-        if (!this.gravityEnabled) return; // 用户未开启重力模式时忽略
+        if (event.beta === null) return;
+        if (!this.gravityEnabled) return;
         
-        let gamma = event.gamma || 0; // 左右倾斜 [-90, 90]
-        let beta = event.beta || 0;   // 前后倾斜 [-180, 180]
+        let gamma = event.gamma || 0;
+        let beta = event.beta || 0;
         
         // 首次收到数据时校准基线：用户当前持机姿态作为"零点"
         if (!this.gravity.calibrated) {
@@ -132,25 +132,29 @@ const Input = {
         let dx = 0;
         let dy = 0;
         
-        if (orientation === 90) { // 向左横屏
+        if (orientation === 90) {
             dx = dBeta;
             dy = -dGamma;
-        } else if (orientation === -90) { // 向右横屏
+        } else if (orientation === -90) {
             dx = -dBeta;
             dy = dGamma;
-        } else { // 竖屏
+        } else {
             dx = dGamma;
             dy = dBeta;
         }
 
-        const deadzone = 3; // 死区（基于偏移量，可以设小一些）
-        
+        const deadzone = 3;
         if (Math.abs(dx) < deadzone) dx = 0;
         if (Math.abs(dy) < deadzone) dy = 0;
         
-        // 归一化倾角到 -1 到 1 的速度输入（最大控制倾斜角度为 25 度）
         this.gravity.x = Math.max(-1, Math.min(1, dx / 25));
         this.gravity.y = Math.max(-1, Math.min(1, dy / 25));
+        
+        // 在按钮上显示实时数据辅助调试
+        const toggleBtn = document.getElementById('gravity-toggle');
+        if (toggleBtn) {
+            toggleBtn.textContent = `🎮 β${Math.round(beta)} γ${Math.round(gamma)} → ${this.gravity.x.toFixed(1)},${this.gravity.y.toFixed(1)}`;
+        }
     },
 
     init() {
@@ -276,20 +280,16 @@ const Input = {
             document.addEventListener('touchcancel', onTouchEnd, { passive: false });
         }
         
-        // 重力模式切换按钮（防止 touchstart+click 双触发）
+        // 重力模式切换按钮（preventDefault 阻止 click 双触发）
         const gravityToggle = document.getElementById('gravity-toggle');
         if (gravityToggle) {
-            let gravityTouchHandled = false;
             gravityToggle.addEventListener('touchstart', (e) => {
-                e.stopPropagation();
-                gravityTouchHandled = true;
+                e.preventDefault();  // 阻止后续 click 事件
+                e.stopPropagation(); // 阻止触发摇杆
                 this.toggleGravity();
             }, { passive: false });
-            gravityToggle.addEventListener('click', (e) => {
-                if (gravityTouchHandled) {
-                    gravityTouchHandled = false;
-                    return; // 已由 touchstart 处理，跳过 click
-                }
+            gravityToggle.addEventListener('click', () => {
+                // 仅桌面端鼠标点击会触发此处
                 this.toggleGravity();
             });
         }
@@ -325,11 +325,13 @@ const Input = {
         let dx = 0;
         let dy = 0;
 
-        if (this.gravity.active && (this.gravity.x !== 0 || this.gravity.y !== 0)) {
-            // 优先使用手机重力感应
+        // 重力模式开启时，独占输入通道（不穿透到摇杆/鼠标）
+        if (this.gravityEnabled) {
+            if (!this.gravity.active) return null; // 事件尚未就绪
             dx = this.gravity.x;
             dy = this.gravity.y;
             const length = Math.sqrt(dx * dx + dy * dy);
+            if (length < 0.05) return null; // 微小倾斜视为静止
             if (length > 1) {
                 dx /= length;
                 dy /= length;
