@@ -17,7 +17,10 @@ const Input = {
     gravity: {
         active: false,
         x: 0,
-        y: 0
+        y: 0,
+        calibrated: false, // 是否已校准基线
+        baseBeta: 0,       // 校准时的 beta 值
+        baseGamma: 0       // 校准时的 gamma 值
     },
     gravityEnabled: false, // 用户是否主动开启了重力模式
     _orientationHandler: null, // 保存 deviceorientation 监听器引用以便移除
@@ -38,6 +41,7 @@ const Input = {
             this.gravity.active = false;
             this.gravity.x = 0;
             this.gravity.y = 0;
+            this.gravity.calibrated = false;
             // 移除重力监听器，避免残留回调持续修改 gravity 状态
             if (this._orientationHandler) {
                 window.removeEventListener('deviceorientation', this._orientationHandler);
@@ -52,6 +56,7 @@ const Input = {
         } else {
             // 开启重力模式，隐藏摇杆
             this.gravityEnabled = true;
+            this.gravity.calibrated = false; // 等待首次 orientation 事件校准
             // 清除摇杆输入，确保不残留方向
             this.joystick.active = false;
             this.joystick.dx = 0;
@@ -87,42 +92,65 @@ const Input = {
         }
     },
 
+    // 获取当前屏幕方向角度（兼容新旧 API）
+    _getScreenOrientation() {
+        if (screen.orientation && screen.orientation.angle !== undefined) {
+            const angle = screen.orientation.angle;
+            // screen.orientation.angle: 0=竖屏, 90=左横屏, 270=右横屏
+            return angle === 270 ? -90 : angle;
+        }
+        // 降级到已弃用的 window.orientation（0, 90, -90）
+        if (window.orientation !== undefined) {
+            return window.orientation;
+        }
+        return 0;
+    },
+
     handleOrientation(event) {
         if (event.beta === null) return; // 设备不支持或无法获取
         if (!this.gravityEnabled) return; // 用户未开启重力模式时忽略
         
-        this.gravity.active = true;
-        this.mouse.active = false;
-        
         let gamma = event.gamma || 0; // 左右倾斜 [-90, 90]
         let beta = event.beta || 0;   // 前后倾斜 [-180, 180]
         
-        // 考虑屏幕横竖屏旋转
-        let orientation = window.orientation || 0;
+        // 首次收到数据时校准基线：用户当前持机姿态作为"零点"
+        if (!this.gravity.calibrated) {
+            this.gravity.baseBeta = beta;
+            this.gravity.baseGamma = gamma;
+            this.gravity.calibrated = true;
+        }
+        
+        this.gravity.active = true;
+        this.mouse.active = false;
+        
+        // 计算相对于基线的偏移量
+        let dBeta = beta - this.gravity.baseBeta;
+        let dGamma = gamma - this.gravity.baseGamma;
+        
+        // 根据屏幕方向映射轴
+        const orientation = this._getScreenOrientation();
         let dx = 0;
         let dy = 0;
         
         if (orientation === 90) { // 向左横屏
-            dx = beta;
-            dy = -gamma;
+            dx = dBeta;
+            dy = -dGamma;
         } else if (orientation === -90) { // 向右横屏
-            dx = -beta;
-            dy = gamma;
+            dx = -dBeta;
+            dy = dGamma;
         } else { // 竖屏
-            // 用户大概率会平躺或者斜拿着手机，所以把基础 beta 减去一定值会让体验更好
-            // 但为了通用，只设死区
-            dx = gamma;
-            dy = beta - 30; // 假设标准握持角度是向上倾斜 30 度
+            dx = dGamma;
+            dy = dBeta;
         }
 
-        const deadzone = 8; // 死区，防止轻微晃动导致误触
+        const deadzone = 3; // 死区（基于偏移量，可以设小一些）
         
         if (Math.abs(dx) < deadzone) dx = 0;
         if (Math.abs(dy) < deadzone) dy = 0;
         
-        // 归一化倾角到 -1 到 1 的速度输入（最高控制角度为 30 度）
-        this.gravity.x = Math.max(-1, Math.min(1, dx / 30));
-        this.gravity.y = Math.max(-1, Math.min(1, dy / 30));
+        // 归一化倾角到 -1 到 1 的速度输入（最大控制倾斜角度为 25 度）
+        this.gravity.x = Math.max(-1, Math.min(1, dx / 25));
+        this.gravity.y = Math.max(-1, Math.min(1, dy / 25));
     },
 
     init() {
