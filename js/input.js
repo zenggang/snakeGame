@@ -20,6 +20,7 @@ const Input = {
         y: 0
     },
     gravityEnabled: false, // 用户是否主动开启了重力模式
+    _orientationHandler: null, // 保存 deviceorientation 监听器引用以便移除
     
     // 虚拟摇杆状态
     joystick: {
@@ -37,6 +38,11 @@ const Input = {
             this.gravity.active = false;
             this.gravity.x = 0;
             this.gravity.y = 0;
+            // 移除重力监听器，避免残留回调持续修改 gravity 状态
+            if (this._orientationHandler) {
+                window.removeEventListener('deviceorientation', this._orientationHandler);
+                this._orientationHandler = null;
+            }
             const joystick = document.getElementById('joystick');
             if (joystick) joystick.style.display = 'block';
             if (toggleBtn) {
@@ -46,6 +52,10 @@ const Input = {
         } else {
             // 开启重力模式，隐藏摇杆
             this.gravityEnabled = true;
+            // 清除摇杆输入，确保不残留方向
+            this.joystick.active = false;
+            this.joystick.dx = 0;
+            this.joystick.dy = 0;
             const joystick = document.getElementById('joystick');
             if (joystick) joystick.style.display = 'none';
             if (toggleBtn) {
@@ -57,17 +67,23 @@ const Input = {
     },
 
     requestGravityPermission() {
+        // 先移除旧监听器（防止重复绑定）
+        if (this._orientationHandler) {
+            window.removeEventListener('deviceorientation', this._orientationHandler);
+        }
+        this._orientationHandler = this.handleOrientation.bind(this);
+        
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             DeviceOrientationEvent.requestPermission()
                 .then(permissionState => {
                     if (permissionState === 'granted') {
-                        window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
+                        window.addEventListener('deviceorientation', this._orientationHandler);
                     }
                 })
                 .catch(console.error);
         } else {
             // 非 iOS 13+ 设备或不支持的设备直接监听
-            window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
+            window.addEventListener('deviceorientation', this._orientationHandler);
         }
     },
 
@@ -232,14 +248,20 @@ const Input = {
             document.addEventListener('touchcancel', onTouchEnd, { passive: false });
         }
         
-        // 重力模式切换按钮（touchstart 优先，保留 click 兼容桌面端）
+        // 重力模式切换按钮（防止 touchstart+click 双触发）
         const gravityToggle = document.getElementById('gravity-toggle');
         if (gravityToggle) {
+            let gravityTouchHandled = false;
             gravityToggle.addEventListener('touchstart', (e) => {
                 e.stopPropagation();
+                gravityTouchHandled = true;
                 this.toggleGravity();
             }, { passive: false });
-            gravityToggle.addEventListener('click', () => {
+            gravityToggle.addEventListener('click', (e) => {
+                if (gravityTouchHandled) {
+                    gravityTouchHandled = false;
+                    return; // 已由 touchstart 处理，跳过 click
+                }
                 this.toggleGravity();
             });
         }
