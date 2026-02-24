@@ -24,6 +24,8 @@ const Input = {
     },
     gravityEnabled: false, // 用户是否主动开启了重力模式
     _orientationHandler: null, // 保存 deviceorientation 监听器引用以便移除
+    _calibrationTimer: null,   // 校准延迟计时器
+    _calibrationReady: false,  // 300ms 等待窗口结束后为 true，代表可以采样
     
     // 虚拟摇杆状态
     joystick: {
@@ -36,13 +38,15 @@ const Input = {
         const toggleBtn = document.getElementById('gravity-toggle');
         
         if (this.gravityEnabled) {
-            // 关闭重力模式，回到摇杆模式
             this.gravityEnabled = false;
             this.gravity.active = false;
-            this.gravity.x = 0;
-            this.gravity.y = 0;
             this.gravity.calibrated = false;
-            // 移除重力监听器，避免残留回调持续修改 gravity 状态
+            // 取消还未完成的校准计时器，防止关闭后状态被污染
+            if (this._calibrationTimer) {
+                clearTimeout(this._calibrationTimer);
+                this._calibrationTimer = null;
+            }
+            this._calibrationReady = false;
             if (this._orientationHandler) {
                 window.removeEventListener('deviceorientation', this._orientationHandler);
                 this._orientationHandler = null;
@@ -54,17 +58,15 @@ const Input = {
                 toggleBtn.classList.remove('active');
             }
         } else {
-            // 开启重力模式，隐藏摇杆
             this.gravityEnabled = true;
-            this.gravity.calibrated = false; // 等待首次 orientation 事件校准
-            // 清除摇杆输入，确保不残留方向
+            this.gravity.calibrated = false;
+            this._calibrationReady = false;
+            this._calibrationTimer = null;
             this.joystick.active = false;
-            this.joystick.dx = 0;
-            this.joystick.dy = 0;
             const joystick = document.getElementById('joystick');
             if (joystick) joystick.style.display = 'none';
             if (toggleBtn) {
-                toggleBtn.textContent = '🎮 切换按钮模式';
+                toggleBtn.textContent = '⌛ 正在启动重力...';
                 toggleBtn.classList.add('active');
             }
             this.requestGravityPermission();
@@ -78,17 +80,22 @@ const Input = {
         }
         this._orientationHandler = this.handleOrientation.bind(this);
         
+        console.log('[Gravity] requestGravityPermission called');
+        
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            console.log('[Gravity] iOS mode: calling requestPermission()');
             DeviceOrientationEvent.requestPermission()
                 .then(permissionState => {
+                    console.log('[Gravity] permission state:', permissionState);
                     if (permissionState === 'granted') {
                         window.addEventListener('deviceorientation', this._orientationHandler);
+                        console.log('[Gravity] listener added (iOS granted)');
                     }
                 })
-                .catch(console.error);
+                .catch(e => console.error('[Gravity] permission error:', e));
         } else {
-            // 非 iOS 13+ 设备或不支持的设备直接监听
             window.addEventListener('deviceorientation', this._orientationHandler);
+            console.log('[Gravity] listener added (non-iOS)');
         }
     },
 
@@ -107,53 +114,54 @@ const Input = {
     },
 
     handleOrientation(event) {
-        if (event.beta === null) return;
-        if (!this.gravityEnabled) return;
+        if (!this.gravityEnabled || event.beta === null) return;
         
         let gamma = event.gamma || 0;
         let beta = event.beta || 0;
         
-        // 首次收到数据时校准基线：用户当前持机姿态作为"零点"
+        // 延迟校准逻辑：先等待 300ms 让手机平稳，再用下一个事件的实时值作为零点
         if (!this.gravity.calibrated) {
+            if (!this._calibrationReady) {
+                // 还在等待窗口期，只启动一次 timer
+                if (!this._calibrationTimer) {
+                    this._calibrationTimer = setTimeout(() => {
+                        this._calibrationReady = true; // 标记：下一个事件可以采样
+                        this._calibrationTimer = null;
+                    }, 300);
+                }
+                return; // 继续忽略数据
+            }
+            // 等待结束，用当前帧实时值作为零点
             this.gravity.baseBeta = beta;
             this.gravity.baseGamma = gamma;
             this.gravity.calibrated = true;
+            this.gravity.active = true;
+            this._calibrationReady = false;
+            console.log('[Gravity] Calibrated at:', beta, gamma);
         }
         
         this.gravity.active = true;
         this.mouse.active = false;
         
-        // 计算相对于基线的偏移量
         let dBeta = beta - this.gravity.baseBeta;
         let dGamma = gamma - this.gravity.baseGamma;
-        
-        // 根据屏幕方向映射轴
         const orientation = this._getScreenOrientation();
-        let dx = 0;
-        let dy = 0;
+        let dx = 0, dy = 0;
         
-        if (orientation === 90) {
-            dx = dBeta;
-            dy = -dGamma;
-        } else if (orientation === -90) {
-            dx = -dBeta;
-            dy = dGamma;
-        } else {
-            dx = dGamma;
-            dy = dBeta;
-        }
+        if (orientation === 90) { dx = dBeta; dy = -dGamma; }
+        else if (orientation === -90) { dx = -dBeta; dy = dGamma; }
+        else { dx = dGamma; dy = dBeta; }
 
-        const deadzone = 3;
+        const deadzone = 4;
         if (Math.abs(dx) < deadzone) dx = 0;
         if (Math.abs(dy) < deadzone) dy = 0;
         
         this.gravity.x = Math.max(-1, Math.min(1, dx / 25));
         this.gravity.y = Math.max(-1, Math.min(1, dy / 25));
         
-        // 在按钮上显示实时数据辅助调试
         const toggleBtn = document.getElementById('gravity-toggle');
         if (toggleBtn) {
-            toggleBtn.textContent = `🎮 β${Math.round(beta)} γ${Math.round(gamma)} → ${this.gravity.x.toFixed(1)},${this.gravity.y.toFixed(1)}`;
+            toggleBtn.textContent = `🎯 已对准 [${this.gravity.x.toFixed(1)}, ${this.gravity.y.toFixed(1)}]`;
         }
     },
 
@@ -256,7 +264,7 @@ const Input = {
                     this.joystick.dx = dx / maxDrag;
                     this.joystick.dy = dy / maxDrag;
                     this.mouse.active = false;
-                    this.gravity.active = false;
+                    // 注意：不要在这里设置 gravity.active = false，重力模式和摇杆互斥由 gravityEnabled 控制
                 }
             };
             
@@ -274,24 +282,30 @@ const Input = {
                 }
             };
             
-            document.addEventListener('touchstart', onTouchStart, { passive: false });
-            document.addEventListener('touchmove', onTouchMove, { passive: false });
-            document.addEventListener('touchend', onTouchEnd, { passive: false });
-            document.addEventListener('touchcancel', onTouchEnd, { passive: false });
+            const container = document.getElementById('game-container') || document.body;
+            container.addEventListener('touchstart', onTouchStart, { passive: false });
+            container.addEventListener('touchmove', onTouchMove, { passive: false });
+            container.addEventListener('touchend', onTouchEnd, { passive: false });
+            container.addEventListener('touchcancel', onTouchEnd, { passive: false });
         }
         
-        // 重力模式切换按钮（preventDefault 阻止 click 双触发）
+        // 重力模式切换按钮
         const gravityToggle = document.getElementById('gravity-toggle');
         if (gravityToggle) {
-            gravityToggle.addEventListener('touchstart', (e) => {
-                e.preventDefault();  // 阻止后续 click 事件
-                e.stopPropagation(); // 阻止触发摇杆
-                this.toggleGravity();
-            }, { passive: false });
-            gravityToggle.addEventListener('click', () => {
-                // 仅桌面端鼠标点击会触发此处
-                this.toggleGravity();
-            });
+            const isTouchDevice = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+            if (isTouchDevice) {
+                // 触屏设备：只用 touchstart，完全不绑 click（防止微信等环境双触发）
+                gravityToggle.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.toggleGravity();
+                }, { passive: false });
+            } else {
+                // 桌面端：只用 click
+                gravityToggle.addEventListener('click', () => {
+                    this.toggleGravity();
+                });
+            }
         }
         
         // 冲刺按钮
