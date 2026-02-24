@@ -126,6 +126,61 @@ class MapManager {
         return 0; // 非碰撞装饰
     }
     
+    // 获取围栏在世界坐标中的实际碰撞矩形（而非整个瓦片格）
+    _getFenceRect(tx, ty, tileType) {
+        const fenceH = assets.slices.map.fence_h;
+        const ratio = fenceH.sw / fenceH.sh;
+        
+        if (tileType === 'wall_h') {
+            const dw = this.tileSize;
+            const dh = this.tileSize / ratio;
+            return {
+                left: tx * this.tileSize,
+                top: ty * this.tileSize + (this.tileSize - dh) / 2,
+                width: dw,
+                height: dh
+            };
+        } else { // wall_v
+            const visualH = this.tileSize;
+            const visualW = this.tileSize / ratio;
+            return {
+                left: tx * this.tileSize + (this.tileSize - visualW) / 2,
+                top: ty * this.tileSize,
+                width: visualW,
+                height: visualH
+            };
+        }
+    }
+
+    // 圆形与矩形碰撞检测
+    _circleRectCollision(cx, cy, radius, rect) {
+        const closestX = Math.max(rect.left, Math.min(cx, rect.left + rect.width));
+        const closestY = Math.max(rect.top, Math.min(cy, rect.top + rect.height));
+        const dist = Math.hypot(cx - closestX, cy - closestY);
+        return dist < radius;
+    }
+
+    // 像素级围栏碰撞检测（扫描周围瓦片，只检测围栏精灵的实际渲染区域）
+    _checkFenceHit(x, y, radius) {
+        const scanRange = 2;
+        const centerTX = Math.floor(x / this.tileSize);
+        const centerTY = Math.floor(y / this.tileSize);
+        
+        for (let cx = centerTX - scanRange; cx <= centerTX + scanRange; cx++) {
+            for (let cy = centerTY - scanRange; cy <= centerTY + scanRange; cy++) {
+                if (cx < 0 || cx >= this.cols || cy < 0 || cy >= this.rows) continue;
+                const tile = this.tiles[cx][cy];
+                if (tile !== 'wall_h' && tile !== 'wall_v') continue;
+                
+                const rect = this._getFenceRect(cx, cy, tile);
+                if (this._circleRectCollision(x, y, radius, rect)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     // 通用装饰物像素级碰撞检测（返回碰撞到的 key 或 null）
     _checkDecorHit(x, y, radius, filterFn) {
         const scanRange = Math.max(1, Math.ceil((radius + 40) / this.tileSize));
@@ -160,21 +215,8 @@ class MapManager {
     isLethal(x, y, radius = 0) {
         if (x < radius || x >= this.width - radius || y < radius || y >= this.height - radius) return true;
         
-        // 边界围栏检测（仍然用瓦片级，因为围栏确实填满整格）
-        const corners = [
-            {cx: x - radius, cy: y - radius},
-            {cx: x + radius, cy: y - radius},
-            {cx: x - radius, cy: y + radius},
-            {cx: x + radius, cy: y + radius}
-        ];
-        for (let p of corners) {
-            const tx = Math.floor(p.cx / this.tileSize);
-            const ty = Math.floor(p.cy / this.tileSize);
-            if (tx >= 0 && tx < this.cols && ty >= 0 && ty < this.rows) {
-                const tile = this.tiles[tx][ty];
-                if (tile === 'wall_h' || tile === 'wall_v') return true;
-            }
-        }
+        // 边界围栏检测（像素级：只检测围栏精灵的实际渲染区域）
+        if (this._checkFenceHit(x, y, radius)) return true;
         
         // 岩石：像素级距离检测
         const hitKey = this._checkDecorHit(x, y, radius, (key) => key.includes('rock'));
@@ -185,20 +227,8 @@ class MapManager {
     isWall(x, y, radius = 0) {
         if (x < radius || x >= this.width - radius || y < radius || y >= this.height - radius) return true;
         
-        const corners = [
-            {cx: x - radius, cy: y - radius},
-            {cx: x + radius, cy: y - radius},
-            {cx: x - radius, cy: y + radius},
-            {cx: x + radius, cy: y + radius}
-        ];
-        for (let p of corners) {
-            const tx = Math.floor(p.cx / this.tileSize);
-            const ty = Math.floor(p.cy / this.tileSize);
-            if (tx >= 0 && tx < this.cols && ty >= 0 && ty < this.rows) {
-                const tile = this.tiles[tx][ty];
-                if (tile === 'wall_h' || tile === 'wall_v') return true;
-            }
-        }
+        // 边界围栏检测（像素级：只检测围栏精灵的实际渲染区域）
+        if (this._checkFenceHit(x, y, radius)) return true;
         
         // 所有实体装饰物：像素级距离检测
         const hitKey = this._checkDecorHit(x, y, radius);
