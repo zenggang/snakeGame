@@ -112,16 +112,46 @@ const Input = {
         }
         this._orientationHandler = this.handleOrientation.bind(this);
         
-        console.log('[Gravity] requestGravityPermission called');
-        
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            console.log('[Gravity] iOS mode: calling requestPermission()');
+        // 诊断：输出当前浏览器环境信息
+        const ua = navigator.userAgent;
+        const isWechat = /MicroMessenger/i.test(ua);
+        const isIOS = /iPhone|iPad|iPod/i.test(ua);
+        const isAndroid = /Android/i.test(ua);
+        const hasRequestPermission = typeof DeviceOrientationEvent !== 'undefined' 
+            && typeof DeviceOrientationEvent.requestPermission === 'function';
+        console.log('[Gravity] ENV:', { isWechat, isIOS, isAndroid, hasRequestPermission, ua: ua.substring(0, 100) });
+
+        if (typeof DeviceOrientationEvent !== 'undefined' && hasRequestPermission) {
+            console.log('[Gravity] iOS/WKWebView mode: calling requestPermission()');
             DeviceOrientationEvent.requestPermission()
                 .then(permissionState => {
                     console.log('[Gravity] permission state:', permissionState);
                     if (permissionState === 'granted') {
                         window.addEventListener('deviceorientation', this._orientationHandler);
                         console.log('[Gravity] listener added (iOS granted)');
+                    } else {
+                        // permissionState === 'denied'：用户之前拒绝过，iOS 不再弹框直接拒绝
+                        console.warn('[Gravity] permission denied (state:', permissionState, ')');
+                        // 清除超时计时器
+                        if (this._calibrationTimeout) {
+                            clearTimeout(this._calibrationTimeout);
+                            this._calibrationTimeout = null;
+                        }
+                        this.gravityEnabled = false;
+                        this.gravity.active = false;
+                        const toggleBtn = document.getElementById('gravity-toggle');
+                        if (toggleBtn) {
+                            toggleBtn.textContent = '❌ 权限被拒绝';
+                            toggleBtn.classList.remove('active');
+                            setTimeout(() => {
+                                if (toggleBtn && !this.gravityEnabled) {
+                                    toggleBtn.textContent = '🔄 切换重力模式';
+                                }
+                            }, 4000);
+                        }
+                        const joystick = document.getElementById('joystick');
+                        if (joystick) joystick.style.display = 'block';
+                        alert('重力权限被拒绝。\n\n请按以下步骤重置权限：\n1. 前往「设置 → Safari → 隐私与安全性」\n2. 找到「动作与方向访问」，确保已开启\n3. 返回游戏页面，长按地址栏 → 网站设置 → 重置权限\n4. 刷新页面后再次点击重力按钮');
                     }
                 })
                 .catch(e => {
@@ -140,7 +170,17 @@ const Input = {
                     this.gravityEnabled = false;
                     const joystick = document.getElementById('joystick');
                     if (joystick) joystick.style.display = 'block';
-                    alert('需要设备方向权限才能使用重力控制。如需使用，请在 Safari 设置中允许此网站的传感器权限。');
+
+                    // 根据错误类型给出不同提示
+                    let errorMsg = '需要设备方向权限才能使用重力控制。';
+                    if (e.name === 'NotAllowedError') {
+                        errorMsg += '\n\n可能原因：\n1. 你之前点击过"不允许"\n2. Safari 设置中禁用了"动作与方向访问"\n\n解决方法：\n• 刷新页面后再次点击重力按钮\n• 或前往 设置 > Safari > 动作与方向访问 > 允许';
+                    } else if (location.protocol !== 'https:') {
+                        errorMsg += '\n\n当前使用 HTTP 连接，iOS 要求 HTTPS 才能访问传感器。请使用 HTTPS 访问此页面。';
+                    } else {
+                        errorMsg += '\n\n错误信息: ' + (e.message || '未知错误');
+                    }
+                    alert(errorMsg);
                 });
         } else {
             window.addEventListener('deviceorientation', this._orientationHandler);
