@@ -26,6 +26,10 @@ const Input = {
     _orientationHandler: null, // 保存 deviceorientation 监听器引用以便移除
     _calibrationTimer: null,   // 校准延迟计时器
     _calibrationReady: false,  // 300ms 等待窗口结束后为 true，代表可以采样
+    _calibrationTimeout: null, // 校准超时计时器（5秒）
+    _calibrationStartTime: 0,  // 校准开始时间
+    _loggedFirstEvent: false,  // 是否已记录第一个方向事件
+    _lastDebugLog: 0,          // 上次调试日志时间
     
     // 虚拟摇杆状态
     joystick: {
@@ -47,6 +51,12 @@ const Input = {
                 this._calibrationTimer = null;
             }
             this._calibrationReady = false;
+            this._loggedFirstEvent = false;
+            this._lastDebugLog = 0;
+            if (this._calibrationTimeout) {
+                clearTimeout(this._calibrationTimeout);
+                this._calibrationTimeout = null;
+            }
             if (this._orientationHandler) {
                 window.removeEventListener('deviceorientation', this._orientationHandler);
                 this._orientationHandler = null;
@@ -63,12 +73,34 @@ const Input = {
             this._calibrationReady = false;
             this._calibrationTimer = null;
             this.joystick.active = false;
+            this._calibrationStartTime = Date.now();
             const joystick = document.getElementById('joystick');
             if (joystick) joystick.style.display = 'none';
             if (toggleBtn) {
-                toggleBtn.textContent = '⌛ 正在启动重力...';
+                toggleBtn.textContent = '📱 请保持手机稳定...';
                 toggleBtn.classList.add('active');
             }
+            // 设置校准超时检测（5秒）
+            this._calibrationTimeout = setTimeout(() => {
+                if (!this.gravity.calibrated && this.gravityEnabled) {
+                    console.warn('[Gravity] Calibration timeout');
+                    this.gravityEnabled = false;
+                    this.gravity.active = false;
+                    if (toggleBtn) {
+                        toggleBtn.textContent = '❌ 重力启动失败，请重试';
+                        toggleBtn.classList.remove('active');
+                        // 3秒后恢复按钮文字
+                        setTimeout(() => {
+                            if (toggleBtn && !this.gravityEnabled) {
+                                toggleBtn.textContent = '🔄 切换重力模式';
+                            }
+                        }, 3000);
+                    }
+                    if (joystick) joystick.style.display = 'block';
+                    // 显示提示
+                    alert('重力感应启动超时，请检查设备是否支持或刷新页面重试');
+                }
+            }, 5000);
             this.requestGravityPermission();
         }
     },
@@ -92,7 +124,24 @@ const Input = {
                         console.log('[Gravity] listener added (iOS granted)');
                     }
                 })
-                .catch(e => console.error('[Gravity] permission error:', e));
+                .catch(e => {
+                    console.error('[Gravity] permission error:', e);
+                    // iOS 权限被拒绝，显示友好提示
+                    const toggleBtn = document.getElementById('gravity-toggle');
+                    if (toggleBtn) {
+                        toggleBtn.textContent = '❌ 权限被拒绝';
+                        toggleBtn.classList.remove('active');
+                        setTimeout(() => {
+                            if (toggleBtn && !this.gravityEnabled) {
+                                toggleBtn.textContent = '🔄 切换重力模式';
+                            }
+                        }, 3000);
+                    }
+                    this.gravityEnabled = false;
+                    const joystick = document.getElementById('joystick');
+                    if (joystick) joystick.style.display = 'block';
+                    alert('需要设备方向权限才能使用重力控制。如需使用，请在 Safari 设置中允许此网站的传感器权限。');
+                });
         } else {
             window.addEventListener('deviceorientation', this._orientationHandler);
             console.log('[Gravity] listener added (non-iOS)');
@@ -114,10 +163,22 @@ const Input = {
     },
 
     handleOrientation(event) {
-        if (!this.gravityEnabled || event.beta === null) return;
-        
+        if (!this.gravityEnabled) return;
+
+        // 详细日志：检查事件数据
+        if (event.beta === null || event.beta === undefined) {
+            console.warn('[Gravity] event.beta is null/undefined');
+            return;
+        }
+
         let gamma = event.gamma || 0;
         let beta = event.beta || 0;
+
+        // 日志：前几个事件的值
+        if (!this._loggedFirstEvent) {
+            console.log('[Gravity] First orientation event:', { beta, gamma, alpha: event.alpha });
+            this._loggedFirstEvent = true;
+        }
         
         // 延迟校准逻辑：先等待 300ms 让手机平稳，再用下一个事件的实时值作为零点
         if (!this.gravity.calibrated) {
@@ -137,14 +198,25 @@ const Input = {
             this.gravity.calibrated = true;
             this.gravity.active = true;
             this._calibrationReady = false;
+            // 清除校准超时计时器
+            if (this._calibrationTimeout) {
+                clearTimeout(this._calibrationTimeout);
+                this._calibrationTimeout = null;
+            }
             console.log('[Gravity] Calibrated at:', beta, gamma);
         }
-        
+
         this.gravity.active = true;
         this.mouse.active = false;
-        
+
         let dBeta = beta - this.gravity.baseBeta;
         let dGamma = gamma - this.gravity.baseGamma;
+
+        // 日志：定期输出 delta 值用于调试
+        if (!this._lastDebugLog || Date.now() - this._lastDebugLog > 1000) {
+            console.log('[Gravity] delta:', { dBeta, dGamma, screenOrientation: this._getScreenOrientation() });
+            this._lastDebugLog = Date.now();
+        }
         const orientation = this._getScreenOrientation();
         let dx = 0, dy = 0;
         
@@ -161,7 +233,10 @@ const Input = {
         
         const toggleBtn = document.getElementById('gravity-toggle');
         if (toggleBtn) {
-            toggleBtn.textContent = `🎯 已对准 [${this.gravity.x.toFixed(1)}, ${this.gravity.y.toFixed(1)}]`;
+            // 校准完成后显示正常状态，不再频繁更新坐标（避免干扰）
+            if (this.gravity.calibrated && toggleBtn.textContent.includes('请保持')) {
+                toggleBtn.textContent = '🎯 重力模式已启用';
+            }
         }
     },
 
@@ -226,7 +301,8 @@ const Input = {
             
             const onTouchStart = (e) => {
                 if (touchId !== null) return; // 已经有一个摇杆触摸在跟踪
-                if (this.gravityEnabled) return; // 重力模式下不启动摇杆
+                // 重力模式已校准时不启动摇杆；校准期间允许摇杆作为回退
+                if (this.gravityEnabled && this.gravity.calibrated) return;
                 const touch = e.changedTouches[0];
                 if (isOnButton(touch)) return; // 按钮区域不触发摇杆
                 
@@ -339,8 +415,8 @@ const Input = {
         let dx = 0;
         let dy = 0;
 
-        // 重力模式开启时，独占输入通道（不穿透到摇杆/鼠标）
-        if (this.gravityEnabled) {
+        // 重力模式开启且已校准时，优先使用重力输入
+        if (this.gravityEnabled && this.gravity.calibrated) {
             if (!this.gravity.active) return null; // 事件尚未就绪
             dx = this.gravity.x;
             dy = this.gravity.y;
@@ -351,7 +427,10 @@ const Input = {
                 dy /= length;
             }
             return { x: dx, y: dy };
-        } else if (this.joystick.active) {
+        }
+
+        // 重力模式开启但未校准完成时，允许回退到摇杆/键盘/鼠标
+        if (this.joystick.active) {
             // 虚拟摇杆输入
             dx = this.joystick.dx;
             dy = this.joystick.dy;
