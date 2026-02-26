@@ -45,6 +45,8 @@ const Input = {
             this.gravityEnabled = false;
             this.gravity.active = false;
             this.gravity.calibrated = false;
+            this.gravity.x = 0;
+            this.gravity.y = 0;
             // 取消还未完成的校准计时器，防止关闭后状态被污染
             if (this._calibrationTimer) {
                 clearTimeout(this._calibrationTimer);
@@ -121,7 +123,7 @@ const Input = {
             && typeof DeviceOrientationEvent.requestPermission === 'function';
         console.log('[Gravity] ENV:', { isWechat, isIOS, isAndroid, hasRequestPermission, ua: ua.substring(0, 100) });
 
-        if (typeof DeviceOrientationEvent !== 'undefined' && hasRequestPermission) {
+        if (typeof DeviceOrientationEvent !== 'undefined' && hasRequestPermission && !isWechat) {
             console.log('[Gravity] iOS/WKWebView mode: calling requestPermission()');
             DeviceOrientationEvent.requestPermission()
                 .then(permissionState => {
@@ -151,6 +153,7 @@ const Input = {
                         }
                         const joystick = document.getElementById('joystick');
                         if (joystick) joystick.style.display = 'block';
+                        this._orientationHandler = null;
                         alert('重力权限被拒绝。\n\n请按以下步骤重置权限：\n1. 前往「设置 → Safari → 隐私与安全性」\n2. 找到「动作与方向访问」，确保已开启\n3. 返回游戏页面，长按地址栏 → 网站设置 → 重置权限\n4. 刷新页面后再次点击重力按钮');
                     }
                 })
@@ -180,6 +183,7 @@ const Input = {
                     } else {
                         errorMsg += '\n\n错误信息: ' + (e.message || '未知错误');
                     }
+                    this._orientationHandler = null;
                     alert(errorMsg);
                 });
         } else {
