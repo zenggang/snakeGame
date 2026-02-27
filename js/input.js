@@ -30,6 +30,8 @@ const Input = {
     _calibrationStartTime: 0,  // 校准开始时间
     _loggedFirstEvent: false,  // 是否已记录第一个方向事件
     _lastDebugLog: 0,          // 上次调试日志时间
+    _orientationEventCount: 0, // 当前重力会话收到的方向事件数量
+    _eventWatchdog: null,      // 方向事件健康检查计时器
     
     // 虚拟摇杆状态
     joystick: {
@@ -55,6 +57,11 @@ const Input = {
             this._calibrationReady = false;
             this._loggedFirstEvent = false;
             this._lastDebugLog = 0;
+            this._orientationEventCount = 0;
+            if (this._eventWatchdog) {
+                clearTimeout(this._eventWatchdog);
+                this._eventWatchdog = null;
+            }
             if (this._calibrationTimeout) {
                 clearTimeout(this._calibrationTimeout);
                 this._calibrationTimeout = null;
@@ -76,6 +83,7 @@ const Input = {
             this._calibrationTimer = null;
             this.joystick.active = false;
             this._calibrationStartTime = Date.now();
+            this._orientationEventCount = 0;
             const joystick = document.getElementById('joystick');
             if (joystick) joystick.style.display = 'none';
             if (toggleBtn) {
@@ -116,24 +124,79 @@ const Input = {
         
         // 诊断：输出当前浏览器环境信息
         const ua = navigator.userAgent;
-        const isWechat = /MicroMessenger/i.test(ua);
         const isIOS = /iPhone|iPad|iPod/i.test(ua);
         const isAndroid = /Android/i.test(ua);
         const hasRequestPermission = typeof DeviceOrientationEvent !== 'undefined' 
             && typeof DeviceOrientationEvent.requestPermission === 'function';
-        console.log('[Gravity] ENV:', { isWechat, isIOS, isAndroid, hasRequestPermission, ua: ua.substring(0, 100) });
+        const hasMotionRequestPermission = typeof DeviceMotionEvent !== 'undefined'
+            && typeof DeviceMotionEvent.requestPermission === 'function';
+        console.log('[Gravity] ENV:', { isIOS, isAndroid, hasRequestPermission, hasMotionRequestPermission, ua: ua.substring(0, 100) });
 
-        if (typeof DeviceOrientationEvent !== 'undefined' && hasRequestPermission && !isWechat) {
-            console.log('[Gravity] iOS/WKWebView mode: calling requestPermission()');
+        // iOS 上通常必须使用 HTTPS 才能读取方向传感器
+        const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        if (location.protocol !== 'https:' && !isLocalhost) {
+            const toggleBtn = document.getElementById('gravity-toggle');
+            if (toggleBtn) {
+                toggleBtn.textContent = '❌ 需要 HTTPS';
+                toggleBtn.classList.remove('active');
+                setTimeout(() => {
+                    if (toggleBtn && !this.gravityEnabled) toggleBtn.textContent = '🔄 切换重力模式';
+                }, 3000);
+            }
+            this.gravityEnabled = false;
+            if (this._calibrationTimeout) {
+                clearTimeout(this._calibrationTimeout);
+                this._calibrationTimeout = null;
+            }
+            const joystick = document.getElementById('joystick');
+            if (joystick) joystick.style.display = 'block';
+            alert('iPhone 的重力感应需要 HTTPS。\n\n请使用 https:// 访问当前网站。');
+            return;
+        }
+
+        const bindOrientationListener = () => {
+            window.addEventListener('deviceorientation', this._orientationHandler);
+            this._orientationEventCount = 0;
+            if (this._eventWatchdog) {
+                clearTimeout(this._eventWatchdog);
+            }
+            // 1.5 秒内完全收不到事件，基本可判定为权限/系统限制
+            this._eventWatchdog = setTimeout(() => {
+                if (this.gravityEnabled && this._orientationEventCount === 0) {
+                    console.warn('[Gravity] no deviceorientation events after permission');
+                    this.gravityEnabled = false;
+                    this.gravity.active = false;
+                    this.gravity.calibrated = false;
+                    if (this._orientationHandler) {
+                        window.removeEventListener('deviceorientation', this._orientationHandler);
+                        this._orientationHandler = null;
+                    }
+                    const toggleBtn = document.getElementById('gravity-toggle');
+                    if (toggleBtn) {
+                        toggleBtn.textContent = '❌ 未收到传感器数据';
+                        toggleBtn.classList.remove('active');
+                        setTimeout(() => {
+                            if (toggleBtn && !this.gravityEnabled) {
+                                toggleBtn.textContent = '🔄 切换重力模式';
+                            }
+                        }, 3500);
+                    }
+                    const joystick = document.getElementById('joystick');
+                    if (joystick) joystick.style.display = 'block';
+                    alert('已授权但未收到重力数据。\n\n请检查：\n1. iPhone 设置 > Safari > 动作与方向访问 已开启\n2. 页面使用 HTTPS\n3. 关闭省电模式后重试');
+                }
+                this._eventWatchdog = null;
+            }, 1500);
+        };
+
+        if (typeof DeviceOrientationEvent !== 'undefined' && hasRequestPermission) {
+            console.log('[Gravity] iOS-like mode: calling permission API');
             DeviceOrientationEvent.requestPermission()
                 .then(permissionState => {
-                    console.log('[Gravity] permission state:', permissionState);
-                    if (permissionState === 'granted') {
-                        window.addEventListener('deviceorientation', this._orientationHandler);
-                        console.log('[Gravity] listener added (iOS granted)');
-                    } else {
+                    console.log('[Gravity] orientation permission state:', permissionState);
+                    if (permissionState !== 'granted') {
                         // permissionState === 'denied'：用户之前拒绝过，iOS 不再弹框直接拒绝
-                        console.warn('[Gravity] permission denied (state:', permissionState, ')');
+                        console.warn('[Gravity] orientation permission denied (state:', permissionState, ')');
                         // 清除超时计时器
                         if (this._calibrationTimeout) {
                             clearTimeout(this._calibrationTimeout);
@@ -155,7 +218,24 @@ const Input = {
                         if (joystick) joystick.style.display = 'block';
                         this._orientationHandler = null;
                         alert('重力权限被拒绝。\n\n请按以下步骤重置权限：\n1. 前往「设置 → Safari → 隐私与安全性」\n2. 找到「动作与方向访问」，确保已开启\n3. 返回游戏页面，长按地址栏 → 网站设置 → 重置权限\n4. 刷新页面后再次点击重力按钮');
+                        return;
                     }
+
+                    // 某些 iOS WebView 需要同时请求 DeviceMotion 才会开始下发 orientation 数据
+                    if (hasMotionRequestPermission) {
+                        return DeviceMotionEvent.requestPermission()
+                            .then(motionState => {
+                                console.log('[Gravity] motion permission state:', motionState);
+                                if (motionState !== 'granted') {
+                                    throw new Error('Motion permission denied');
+                                }
+                            });
+                    }
+                })
+                .then(() => {
+                    if (!this.gravityEnabled) return;
+                    bindOrientationListener();
+                    console.log('[Gravity] listener added (permission granted)');
                 })
                 .catch(e => {
                     console.error('[Gravity] permission error:', e);
@@ -187,7 +267,7 @@ const Input = {
                     alert(errorMsg);
                 });
         } else {
-            window.addEventListener('deviceorientation', this._orientationHandler);
+            bindOrientationListener();
             console.log('[Gravity] listener added (non-iOS)');
         }
     },
@@ -208,6 +288,7 @@ const Input = {
 
     handleOrientation(event) {
         if (!this.gravityEnabled) return;
+        this._orientationEventCount++;
 
         // 详细日志：检查事件数据
         if (event.beta === null || event.beta === undefined) {
